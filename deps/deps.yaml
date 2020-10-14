@@ -1,0 +1,6 @@
+- io/bazel/rules_rust
+- com/grail/bazel_toolchain
+- com/github/facebook/folly
+- com/github/vestnik/portable_concurrency
+- com/github/grpc/grpc
+- com/github/ericniebler/range_v3

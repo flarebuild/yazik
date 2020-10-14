@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package com.book;
+
+enum CanRecommend {
+    Yep = 0;
+    Nope = 3;
+}
+
+message Author {
+    string name = 1;
+}
+
+message InsideOneOfMessage {
+    string field = 1;
+}
+
+message Book {
+    int64 isbn = 1;
+    string title = 2;
+    Author Author = 3;
+    message Page {
+        repeated string lines = 1;
+    }
+    repeated Page pages = 4;
+    oneof first_oneof {
+        string first_oneof_string = 5;
+        int64 first_oneof_int = 6;
+    }
+    enum Availability {
+        Available = 0;
+        NotAvailable = 1;
+    }
+    Availability availability = 7;
+    CanRecommend recommended = 8;
+    oneof second_oneof {
+        string second_oneof_string = 9;
+        int64 second_oneof_int = 10;
+        InsideOneOfMessage second_oneof_message = 11;
+    }
+}
+
+message GetBookRequest {
+    int64 isbn = 1;
+}
+
+message GetBookViaAuthor {
+    string author = 1;
+}
+
+service BookService {
+    rpc GetBook (GetBookRequest) returns (Book) {}
+    rpc GetBooksViaAuthor (GetBookViaAuthor) returns (stream Book) {}
+    rpc GetGreatestBook (stream GetBookRequest) returns (Book) {}
+    rpc GetBooks (stream GetBookRequest) returns (stream Book) {}
+}
+
+message BookStore {
+    string name = 1;
+    map<int64, string> books = 2;
+}
+
+message CycleDep1 {
+    CycleDep2 dep = 1;
+}
+
+message CycleDep2 {
+    CycleDep1 dep = 1;
+}

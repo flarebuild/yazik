@@ -1,0 +1,46 @@
+workspace(name = "build_flare_yazik")
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# build_flare_bazel_utility
+http_archive(
+    name = "build_flare_bazel_utility",
+    strip_prefix = "bazel_utility-main",
+    urls = ["https://github.com/flarebuild/bazel_utility/archive/main.tar.gz"],
+)
+
+load("@build_flare_bazel_utility//:init_me.bzl", "init_me")
+init_me()
+
+# local_linked_repos
+load("@build_flare_bazel_utility//repo:local_linked_repos.bzl", "local_linked_repos")
+local_linked_repos(name = "local_linked_repos", config = "//deps:local_linked_repos.yaml")
+
+load("@local_linked_repos//:defs.bzl", "init_local_linked")
+init_local_linked()
+
+# deps
+load("@build_flare_bazel_deps//:deps.bzl", "compose_deps")
+compose_deps(name = "compose_deps", config = "//deps:deps.yaml")
+
+load("@compose_deps//:defs.bzl", "init_deps")
+init_deps()
+
+# bazel llvm toolchain
+load("@com_grail_bazel_toolchain//toolchain:rules.bzl", "llvm_toolchain")
+llvm_toolchain(name = "llvm_toolchain",llvm_version = "11.0.0")
+
+load("@llvm_toolchain//:toolchains.bzl", "llvm_register_toolchains")
+llvm_register_toolchains()
+
+# cmake gen cargo
+load("@build_flare_bazel_cmake//tools:tools_deps.bzl", "tools_deps")
+tools_deps()
+
+# rules_rust
+load("@io_bazel_rules_rust//rust:repositories.bzl", "rust_repositories")
+rust_repositories(version = "1.46.0", edition="2018")
+
+load("@io_bazel_rules_rust//:workspace.bzl", "rust_workspace")
+rust_workspace()
+

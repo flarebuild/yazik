@@ -1,0 +1,6 @@
+load("@build_flare_bazel_cmake//rules:cmake.bzl", "cmake_gen")
+
+cmake_gen(
+    name = "cmake_gen",
+    config = "debug",
+)

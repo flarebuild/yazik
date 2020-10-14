@@ -1,0 +1,15 @@
+load("//rules/compiler:yazik.bzl", "yazik")
+
+#yazik.library(
+#    name = "sample",
+#    has_rpc = True,
+#    srcs = [
+#        "sample.proto",
+#    ],
+#    visibility = [
+#        "//visibility:public"
+#    ],
+#    tags = [
+#        "cmake_ignore",
+#    ],
+#)

@@ -1,0 +1,38 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "support",
+    hdrs = [
+        "support.hpp"
+    ],
+    deps = [
+        "//src/yazik/utility",
+        "@com_google_protobuf//:protobuf",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc.library(
+    name = "rpc_support",
+    hdrs = [
+        "rpc_support.hpp"
+    ],
+    deps = [
+        ":support",
+        "//src/yazik/rpc/base",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc.library(
+    name = "grpc_support",
+    hdrs = [
+        "grpc_support.hpp"
+    ],
+    deps = [
+        ":rpc_support",
+        "//src/yazik/rpc/grpc",
+        "@com_github_grpc_grpc//:grpc++_codegen_proto",
+    ],
+    visibility = ["//visibility:public"],
+)

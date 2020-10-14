@@ -1,0 +1,16 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "proto",
+    hdrs = glob([
+        "**/*.hpp",
+    ]),
+    srcs = glob([
+        "**/*.cpp",
+    ]),
+    deps = [
+        "//src/yazik/utility",
+        "@com_google_protobuf//:protobuf",
+    ],
+    visibility = ["//visibility:public"],
+)

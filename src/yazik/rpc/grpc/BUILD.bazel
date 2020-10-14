@@ -1,0 +1,17 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "grpc",
+    hdrs = glob([
+        "**/*.hpp",
+    ]),
+    srcs = glob([
+        "**/*.cpp",
+    ]),
+    deps = [
+        "//src/yazik/rpc/base",
+        "//src/yazik/proto",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+    visibility = ["//visibility:public"],
+)

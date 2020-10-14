@@ -1,0 +1,5 @@
+bazel-*
+.clwb
+cmake_gen
+cmake-build-debug
+.idea

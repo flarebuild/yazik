@@ -1,0 +1,13 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "concurrency",
+    srcs = glob(["**/*.cpp",]),
+    hdrs = glob(["**/*.hpp",]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/yazik/utility",
+        "@org_boost//:asio",
+        "@com_github_vestnik_portable_concurrency//:portable_concurrency",
+    ],
+)

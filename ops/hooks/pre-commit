@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+base_dir="$(cd "$(dirname "$0")" && pwd)"
+cd "$base_dir"/../../
+bazel run @local_linked_repos//:check -c opt
+git add deps/local_linked_repos.yaml

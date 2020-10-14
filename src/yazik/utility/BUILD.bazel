@@ -1,0 +1,13 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "utility",
+    srcs = glob(["**/*.cpp",]),
+    hdrs = glob(["**/*.hpp",]),
+    deps = [ 
+        "//src:root_cpp_include", 
+        "@com_github_facebook_folly//:folly",
+        "@com_github_ericniebler_range_v3//:range-v3",
+    ],
+    visibility = ["//visibility:public"],
+)

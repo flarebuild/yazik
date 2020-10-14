@@ -1,0 +1,7 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "root_cpp_include",
+    includes = [ "." ],
+    visibility = ["//src:__subpackages__"],
+)

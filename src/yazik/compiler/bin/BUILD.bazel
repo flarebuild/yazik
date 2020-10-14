@@ -1,0 +1,12 @@
+load("//rules:cc.bzl", "cc")
+
+cc.binary(
+    name = "bin",
+    srcs = [
+        "compiler.cpp",
+    ],
+    deps = [
+        "//src/yazik/compiler:lib",
+    ],
+    visibility = ["//visibility:public"],
+)

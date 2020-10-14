@@ -1,0 +1,23 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "lib",
+    hdrs =  [
+        "common.hpp",
+    ] + glob([
+        "formatters/**/*.hpp",
+        "utility/**/*.hpp",
+        "generators/**/*.hpp",
+    ]),
+    srcs = glob([
+        "formatters/**/*.cpp",
+        "utility/**/*.cpp",
+        "generators/**/*.cpp",
+    ]),
+    deps = [
+        "//src/yazik/utility",
+        "@com_google_protobuf//:protoc_lib",
+        "@com_github_grpc_grpc//src/compiler:grpc_plugin_support",
+    ],
+    visibility = ["//visibility:public"],
+)
