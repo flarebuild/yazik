@@ -386,10 +386,10 @@ namespace promises {
 		Future<T, Error> fut() {
 		    Task self_move = std::move(*this);
 		    if constexpr (std::is_same_v<T, void>) {
-		        co_await self_move;
+		        co_await std::move(self_move);
 		        co_return;
 		    } else {
-		        co_return co_await self_move;
+		        co_return co_await std::move(self_move);
 		    }
 		}
 
@@ -411,16 +411,11 @@ namespace promises {
     }
 
     template <typename T = void, typename Error = string>
-    Task<T, Error> yaz_fail_t(Error&& e) noexcept {
-        co_await yaz_fail(std::forward<Error>(e));
+    Task<T, Error> yaz_fail_t(Error e) noexcept {
+        co_await  yaz_fail(std::move(e));
         __builtin_unreachable();
     }
 
-    template <typename T = void, typename Error = string>
-    Task<T, Error> yaz_fail_t(const Error& e) noexcept {
-        co_await yaz_fail(e);
-        __builtin_unreachable();
-    }
 
 namespace promises {
     template<typename T, typename Error>

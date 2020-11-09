@@ -477,6 +477,7 @@ namespace yazik::compiler {
                         w.wl("static void set_{}({}*, {});", getter, pbtype, type);
                     }
                 }
+                w.wl("[[nodiscard]] static bool deserialize({}*, std::string_view);", pbtype);
                 w.wl("[[nodiscard]] static {}EntityRef as_ref(const void*);", tname);
                 w.l();
                 w.w("static inline const {}BuilderVtable* vtable() ", tname)
@@ -506,6 +507,7 @@ namespace yazik::compiler {
                                         );
                                     }
                                 }
+                                w.wl(".deserialize = ({0}BuilderVtable::deserialize_fn)&{0}PbBuilderSpec::deserialize,", tname);
                                 w.wl(".as_ref = ({0}BuilderVtable::as_ref_fn)&{0}PbBuilderSpec::as_ref,", tname);
                             }, false)
                             .wl(";");
@@ -642,6 +644,11 @@ namespace yazik::compiler {
                     });
             }
         }
+        w.w("inline bool {}PbBuilderSpec::deserialize({}* a, std::string_view data) ", tname, pbtype)
+            .braced([&] {
+                w.wl("return a->ParseFromArray(data.data(), data.size());");
+            });
+
         w.w("inline {0}EntityRef {0}PbBuilderSpec::as_ref(const void* ptr) ", tname)
             .braced([&]{
                 w.wl("return create_entity<{0}EntityRef>(ptr, {0}PbSpec::vtable());", tname);

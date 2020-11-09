@@ -1,5 +1,6 @@
 #include "cpp_rpc_gen.hpp"
 #include <google/protobuf/descriptor.pb.h>
+#include <yazik/compiler/support/rpc_support.hpp>
 #include <yazik/compiler/utility/writer.hpp>
 #include <yazik/compiler/formatters/yaz_formatter.hpp>
 
@@ -59,6 +60,7 @@ namespace yazik::compiler {
                         });
                     w.l();
                     auto unit_pattern = [&](
+                        rpc_support::RpcUnitType type,
                         const std::string& unit_type,
                         const std::string& resp_wr,
                         const std::string& req_wr,
@@ -72,7 +74,7 @@ namespace yazik::compiler {
 
                         w.wl("template<typename Fn>");
                         w.w(
-                            "concept c_{}{}_unit = ::yazik::rpc::c_{}_unit", c_name, concept_postf, unit_type)
+                            "concept c_{}{}_unit = !boost::di::aux::is_complete<Fn>::value || ::yazik::rpc::c_{}_unit", c_name, concept_postf, unit_type)
                             .braced_detail([&]{
                                 w.wl("Fn,");
                                 w.wl("{},", input);
@@ -83,10 +85,29 @@ namespace yazik::compiler {
                         w.l();
                         w.w("struct {}{}Functor ", name, postf)
                             .class_braced([&]{
-                                w.wl("using ResponseTag = typename {}Ctx::Tag;", name);
+                                w.wl("using Ctx = {}Ctx;", name);
+                                w.wl("using ResponseTag = Ctx::Tag;");
+                                w.wl("using Request = {};", req_wr);
+                                w.wl("using Response = ::yazik::rpc::{}<ResponseTag>;", resp_wr);
+
+                                switch (type) {
+                                case rpc_support::RpcUnitType::ServerStreaming:
+                                    w.wl("constexpr static auto rpc_type = ::yazik::compiler::rpc_support::RpcUnitType::ServerStreaming;");
+                                    break;
+                                case rpc_support::RpcUnitType::ClientStreaming:
+                                    w.wl("constexpr static auto rpc_type = ::yazik::compiler::rpc_support::RpcUnitType::ClientStreaming;");
+                                    break;
+                                case rpc_support::RpcUnitType::UnaryAsync:
+                                    w.wl("constexpr static auto rpc_type = ::yazik::compiler::rpc_support::RpcUnitType::UnaryAsync;");
+                                    break;
+                                case rpc_support::RpcUnitType::UnarySync:
+                                    w.wl("constexpr static auto rpc_type = ::yazik::compiler::rpc_support::RpcUnitType::UnarySync;");
+                                    break;
+                                }
+
                                 w.w("virtual ::yazik::rpc::{}<ResponseTag> operator ()", resp_wr)
                                     .braced_detail([&]{
-                                        w.wl("{}Ctx& /*ctx*/,", name);
+                                        w.wl("{}Ctx& ctx,", name);
                                         w.wl("{}&& request", req_wr);
                                     }, false, "(",")")
                                     .w(" ")
@@ -101,6 +122,7 @@ namespace yazik::compiler {
 
                     if (method->server_streaming()) {
                         unit_pattern(
+                            rpc_support::RpcUnitType::ServerStreaming,
                             "stream_writer",
                             "RpcChannel",
                             input,
@@ -109,6 +131,7 @@ namespace yazik::compiler {
                         );
                     } else if (method->client_streaming()) {
                         unit_pattern(
+                            rpc_support::RpcUnitType::ClientStreaming,
                             "stream_reader",
                             "RpcTask",
                             do_sformat("::yazik::rpc::RpcChannel<{}>", input),
@@ -117,6 +140,7 @@ namespace yazik::compiler {
                         );
                     } else {
                         unit_pattern(
+                            rpc_support::RpcUnitType::UnaryAsync,
                             "unary_async",
                             "RpcTask",
                             input,
@@ -124,6 +148,7 @@ namespace yazik::compiler {
                             "Async"
                         );
                         unit_pattern(
+                            rpc_support::RpcUnitType::UnarySync,
                             "unary_sync",
                             "RpcResult",
                             input,
@@ -193,7 +218,7 @@ namespace yazik::compiler {
                     std::string input_tname = f.type_name(method->input_type());
                     std::string output_tname = f.type_name(method->output_type());
 
-                    w.wl("template <c_{}_unit Unit>", c_name);
+                    w.wl("template <c_{}_unit Unit = class {}Unit>", c_name, name);
                     w.w("struct {}GrpcHandle: ::yazik::compiler::support::Initializer ", name)
                         .class_braced([&] {
                             w.wl("using base_service_t = {};", service->name());
@@ -202,6 +227,9 @@ namespace yazik::compiler {
                             w.wl("using response_t = {};", output_tname);
                             w.wl("using context_t = {}Ctx;", name);
                             w.wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;");
+                            w.l();
+                            w.wl("Unit unit;");
+                            w.wl("{}GrpcHandle(Unit unit): unit(std::move(unit)) {{}}", name);
                             w.l();
                             w.w("static ::yazik::OneWayTask spawn")
                                 .braced_detail([&]{
@@ -272,12 +300,21 @@ namespace yazik::compiler {
                                                 }, true, "(", ")");
                                         });
                                     w.l();
+                                    w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>)")
+                                        .braced([&]{
+                                            w.wl("unit.on_start(ctx);");
+                                        });
+                                    w.l();
                                     if (method->server_streaming()) {
                                         w.wl("auto channel = unit(ctx, {}PbSpec::wrap(request));", input_tname);
                                         w.w("if (auto result = channel.one_result_only()) ")
                                             .braced_detail([&] {
                                                 w.w("if (*result) ")
                                                     .braced_detail([&] {
+                                                        w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                            .braced([&]{
+                                                                w.wl("unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());");
+                                                            });
                                                         w.w("writer.WriteAndFinish")
                                                             .braced_detail([&]{
                                                                 w.wl("response,");
@@ -288,6 +325,10 @@ namespace yazik::compiler {
                                                     }, false)
                                                     .w(" else ")
                                                     .braced([&] {
+                                                        w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                            .braced([&]{
+                                                                w.wl("unit.on_finish(ctx, result->error());");
+                                                            });
                                                         w.w("writer.Finish")
                                                             .braced_detail([&]{
                                                                 w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(result->error()),");
@@ -304,12 +345,20 @@ namespace yazik::compiler {
                                                         w.wl("response = response_t{{}};");
                                                         w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
                                                             .braced([&] {
+                                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                                    .braced([&]{
+                                                                        w.wl("unit.on_finish(ctx, ::yazik::rpc::RpcStatus::cancelled());");
+                                                                    });
                                                                 w.wl("writer.Finish(::grpc::Status::CANCELLED, stepper.tag());");
                                                                 w.wl("co_await stepper.step(YAZ_LOCATION_STR);");
                                                                 w.wl("co_return;");
                                                             });
                                                     });
                                                 w.wl("co_await scheduler->ensure_on(YAZ_LOCATION_STR);");
+                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                    .braced([&]{
+                                                        w.wl("unit.on_finish(ctx, channel.status());");
+                                                    });
                                                 w.w("writer.Finish")
                                                     .braced_detail([&]{
                                                         w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(channel.status()),");
@@ -322,7 +371,7 @@ namespace yazik::compiler {
                                             .braced_detail([&]{
                                                 w.wl("ctx,");
                                                 w.w("[&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
-                                                    .braced([&]{
+                                                    .braced_detail([&]{
                                                         w.w("for (;;) ")
                                                             .braced([&] {
                                                                 w.wl("reader.Read(&request, stepper.tag());");
@@ -333,13 +382,18 @@ namespace yazik::compiler {
                                                                 w.wl("co_yield {}PbSpec::wrap(request);", input_tname);
                                                                 w.wl("request = request_t{{}};");
                                                             });
-                                                    });
+                                                    }, false).wl("()");
                                             }, false, "(", ")")
                                             .wl(".wrapped();");
                                         w.wl("co_await scheduler->ensure_on(YAZ_LOCATION_STR);");
                                         w.l();
                                         w.w("if (result) ")
                                             .braced_detail([&] {
+                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                    .braced([&]{
+                                                        w.wl("unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());");
+                                                    });
+
                                                 w.w("reader.Finish")
                                                     .braced_detail([&] {
                                                         w.wl("response,");
@@ -349,6 +403,11 @@ namespace yazik::compiler {
                                             }, false)
                                             .w(" else ")
                                             .braced([&] {
+                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                    .braced([&]{
+                                                        w.wl("unit.on_finish(ctx, result.error());");
+                                                    });
+
                                                 w.w("reader.FinishWithError")
                                                     .braced_detail([&] {
                                                         w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(result.error()),");
@@ -368,6 +427,11 @@ namespace yazik::compiler {
                                         w.l();
                                         w.w("if (result) ")
                                             .braced_detail([&] {
+                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                    .braced([&]{
+                                                        w.wl("unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());");
+                                                    });
+
                                                 w.w("responder.Finish")
                                                     .braced_detail([&] {
                                                         w.wl("response,");
@@ -377,6 +441,11 @@ namespace yazik::compiler {
                                             }, false)
                                             .w(" else ")
                                             .braced([&] {
+                                                w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                    .braced([&]{
+                                                        w.wl("unit.on_finish(ctx, result.error());");
+                                                    });
+
                                                 w.w("responder.FinishWithError")
                                                     .braced_detail([&] {
                                                         w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(result.error()),");

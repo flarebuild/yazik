@@ -477,6 +477,9 @@ namespace yazik::compiler {
                         w.wl("set_{0}_fn set_{0};", getter);
                     }
                 }
+                w.wl("using deserialize_fn = bool (*)(const void*, std::string_view);");
+                w.wl("deserialize_fn deserialize;");
+
                 w.wl("using as_ref_fn = {0}EntityRef (*)(const void*);", tname);
                 w.wl("as_ref_fn as_ref;");
             });
@@ -536,6 +539,7 @@ namespace yazik::compiler {
                         w.wl("void set_{}({});", getter, type);
                     }
                 }
+                w.wl("[[nodiscard]] bool deserialize(std::string_view);");
                 w.wl("[[nodiscard]] {}EntityRef as_ref();", tname);
             }, false)
             .wl(";");
@@ -693,6 +697,12 @@ namespace yazik::compiler {
                     });
             }
         }
+
+        w.w("inline bool {}Builder::deserialize(std::string_view data) ", tname)
+            .braced([&] {
+                w.wl("return _vtable->deserialize(_ptr, std::move(data));");
+            });
+
         w.w("inline {0}EntityRef {0}Builder::as_ref() ", tname)
             .braced([&] {
                 w.wl("return _vtable->as_ref(_ptr);");

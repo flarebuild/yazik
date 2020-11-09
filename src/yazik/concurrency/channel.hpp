@@ -253,7 +253,7 @@ namespace promises {
         using iterator = promises::ChannelIterator<Payload, Status>;
 
     private:
-        enum Type {
+        enum class Type {
             SingleResult,
             Stream
         };
@@ -267,7 +267,7 @@ namespace promises {
 
         friend class ChannelGroup<Payload, Status>;
 
-        void destroy() {
+        inline void destroy() noexcept {
             switch (_type) {
             case Type::Stream:
                 if (_handle)
@@ -310,6 +310,9 @@ namespace promises {
 
         Channel& operator=(Channel &&other) noexcept {
             destroy();
+            if (std::addressof(other) == this)
+                return *this;
+
             switch (_type) {
             case Type::Stream:
                 _handle = other._handle;

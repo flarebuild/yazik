@@ -255,10 +255,10 @@ namespace yazik::concurrency {
         void wait() override;
     };
 
-    utility::intrusive_ptr<SingleThreadExecutor> create_single_thread_executor(bool start = true);
+    intrusive_ptr<SingleThreadExecutor> create_single_thread_executor(bool start = true);
 
-    using executor_ptr_t = utility::intrusive_ptr<concurrency::Executor>;
-    using thread_executor_ptr_t = utility::intrusive_ptr<concurrency::ThreadExecutor>;
+    using executor_ptr_t = intrusive_ptr<concurrency::Executor>;
+    using thread_executor_ptr_t = intrusive_ptr<concurrency::ThreadExecutor>;
 
     struct IExecutorProvider {
         static const executor_ptr_t s_null_executor;

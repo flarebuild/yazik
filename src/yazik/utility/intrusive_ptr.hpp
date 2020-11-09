@@ -8,7 +8,7 @@
 
 #include <yazik/utility/type_traits.hpp>
 
-namespace yazik::utility {
+namespace yazik {
 
     /// An intrusive, reference counting smart pointer implementation.
     /// @relates ref_counted
@@ -218,14 +218,14 @@ namespace yazik::utility {
 
     /// @relates intrusive_ptr
     template <class T, class U>
-    std::enable_if_t<is_comparable<T*, U*>::value, bool>
+    std::enable_if_t<utility::is_comparable<T*, U*>::value, bool>
     operator==(const intrusive_ptr<T>& x, const intrusive_ptr<U>& y) {
         return x.get() == y.get();
     }
 
     /// @relates intrusive_ptr
     template <class T, class U>
-    std::enable_if_t<is_comparable<T*, U*>::value, bool>
+    std::enable_if_t<utility::is_comparable<T*, U*>::value, bool>
     operator!=(const intrusive_ptr<T>& x, const intrusive_ptr<U>& y) {
         return x.get() != y.get();
     }
@@ -252,4 +252,4 @@ namespace yazik::utility {
         return intrusive_ptr<T> { new T { std::forward<Args>(args)... } };
     }
 
-} // end of ::yazik::utility namespace
+} // end of ::yazik namespace

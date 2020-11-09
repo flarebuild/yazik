@@ -27,7 +27,7 @@ namespace yazik {
     using ResultSPtr = Result<std::shared_ptr<T>, Error>;
 
     template <typename T, typename Error = string>
-    using ResultIPtr = Result<utility::intrusive_ptr<T>, Error>;
+    using ResultIPtr = Result<intrusive_ptr<T>, Error>;
 
     template <typename T, typename Error = string>
     using ResultOpt = Result<std::optional<T>, Error>;

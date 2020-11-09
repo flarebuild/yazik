@@ -114,7 +114,7 @@ namespace yazik::rpc::grpc {
     public:
         GrpcQueueScheduler(std::unique_ptr<::grpc::CompletionQueue> queue);
         virtual ~GrpcQueueScheduler();
-        static utility::intrusive_ptr<GrpcQueueScheduler> create();
+        static intrusive_ptr<GrpcQueueScheduler> create();
 
         concurrency::Disposer dispatch_impl(
             concurrency::unique_function<void(concurrency::CancellationToken&&)>&& clbk
@@ -161,7 +161,7 @@ namespace yazik::rpc::grpc {
     public:
         using GrpcQueueScheduler::GrpcQueueScheduler;
 
-        static utility::intrusive_ptr<GrpcQueueThreadScheduler> create();
+        static intrusive_ptr<GrpcQueueThreadScheduler> create();
 
         virtual ~GrpcQueueThreadScheduler();
 
@@ -181,9 +181,9 @@ namespace yazik::rpc::grpc {
         ::grpc::ServerCompletionQueue* server_queue();
     };
 
-    using queue_scheduler_ptr_t = utility::intrusive_ptr<GrpcQueueScheduler>;
-    using queue_thread_scheduler_ptr_t = utility::intrusive_ptr<GrpcQueueThreadScheduler>;
-    using server_queue_thread_scheduler_ptr_t = utility::intrusive_ptr<GrpcServerQueueThreadScheduler>;
+    using queue_scheduler_ptr_t = intrusive_ptr<GrpcQueueScheduler>;
+    using queue_thread_scheduler_ptr_t = intrusive_ptr<GrpcQueueThreadScheduler>;
+    using server_queue_thread_scheduler_ptr_t = intrusive_ptr<GrpcServerQueueThreadScheduler>;
 
 //    template <typename Tag>
 //    using GrpcExecutorProvider =  ExecutorProvider<Tag, GrpcServerQueueThreadExecutor>;

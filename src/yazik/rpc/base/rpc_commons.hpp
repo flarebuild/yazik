@@ -64,7 +64,7 @@ namespace yazik::rpc {
     > concept c_stream_reader_unit = requires (
         Fn fn,
         Ctx& ctx,
-        RpcChannel<Req>&& stream
+        RpcChannel<Req> stream
     ) {
         { fn(ctx, std::move(stream)) } -> concepts::c_same_as<RpcTask<typename Ctx::Tag>>;
     } && c_request_context<Ctx>;
@@ -79,7 +79,7 @@ namespace yazik::rpc {
         Ctx& ctx,
         Req req
     ) {
-        { fn(ctx, std::move(req)) } -> concepts::c_same_as<RpcChannel<Res>>;
+        { fn(ctx, std::move(req)) } -> concepts::c_same_as<RpcChannel<typename Ctx::Tag>>;
     } && c_request_context<Ctx>;
 
     template<

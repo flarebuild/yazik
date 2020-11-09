@@ -54,7 +54,7 @@ namespace yazik::concurrency {
 
     };
 
-    using scheduler_ptr_t = utility::intrusive_ptr<Scheduler>;
+    using scheduler_ptr_t = intrusive_ptr<Scheduler>;
 
     class ThreadScheduler
     : public virtual Scheduler
@@ -67,7 +67,7 @@ namespace yazik::concurrency {
         virtual Future<> run_until_done(Future<> work) = 0;
     };
 
-    utility::intrusive_ptr<WorkScheduler> create_asio_scheduler();
-    utility::intrusive_ptr<ThreadScheduler> create_asio_thread_scheduler();
+    intrusive_ptr<WorkScheduler> create_asio_scheduler();
+    intrusive_ptr<ThreadScheduler> create_asio_thread_scheduler();
 
 } // end of ::yazik::concurrency namespace

@@ -6,8 +6,10 @@
 #include <atomic>
 #include <stack>
 
-namespace yazik {
-namespace concurrency {
+namespace yazik::concurrency {
+
+    template<typename Fn, typename T>
+    concept c_stack_sweep_fn = requires(Fn&& fn, T&& value) { fn(std::move(value)); };
 
     template<class T>
     class Stack {
@@ -53,7 +55,8 @@ namespace concurrency {
             }
         }
 
-        bool sweep(std::function<void(T&&)> fn) noexcept {
+        template<c_stack_sweep_fn<T> Fn>
+        bool sweep(Fn&& fn) noexcept {
             auto cur = steel_head();
             if (cur == nullptr) return false;
             while (cur) {
@@ -65,7 +68,8 @@ namespace concurrency {
             return true;
         }
 
-        bool sweep_ordered(std::function<void(T&&)> fn) noexcept {
+        template<c_stack_sweep_fn<T> Fn>
+        bool sweep_ordered(Fn&& fn) noexcept {
             auto cur = steel_head();
             if (cur == nullptr) return false;
             Node *next, *prev = nullptr;
@@ -130,4 +134,3 @@ namespace concurrency {
     };
 
 } // end of ::yazik::concurrency namespace
-} // end of ::yazik namespace

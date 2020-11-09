@@ -146,11 +146,11 @@ namespace yazik::concurrency {
         }
     };
 
-    utility::intrusive_ptr<WorkScheduler> create_asio_scheduler() {
+    intrusive_ptr<WorkScheduler> create_asio_scheduler() {
         return new AsioScheduler{};
     }
 
-    utility::intrusive_ptr<ThreadScheduler> create_asio_thread_scheduler() {
+    intrusive_ptr<ThreadScheduler> create_asio_thread_scheduler() {
         return new AsioThreadScheduler{};
     }
 

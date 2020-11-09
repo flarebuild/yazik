@@ -207,8 +207,8 @@ namespace concurrency {
         _thread_id = {};
     }
 
-    utility::intrusive_ptr<SingleThreadExecutor> create_single_thread_executor(bool start) {
-        utility::intrusive_ptr result = new SingleThreadExecutor{};
+    intrusive_ptr<SingleThreadExecutor> create_single_thread_executor(bool start) {
+        intrusive_ptr result = new SingleThreadExecutor{};
         if (start && !result->start()) return nullptr;
         return result;
     }

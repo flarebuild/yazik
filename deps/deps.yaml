@@ -4,3 +4,4 @@
 - com/github/vestnik/portable_concurrency
 - com/github/grpc/grpc
 - com/github/ericniebler/range_v3
+- com/github/boost_ext/di

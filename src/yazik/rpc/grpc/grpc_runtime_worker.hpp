@@ -38,7 +38,22 @@ namespace yazik::rpc::grpc {
                     _scheduler
                 );
             });
+        }
 
+        template<
+            template <class> typename Handle,
+            typename Injector
+        > void spawn_injected(const Injector& injector) {
+            auto handle = injector.template create<Handle>();
+            using handle_t = decltype(injector.template create<Handle>());
+            auto* service = _runtime->service<typename handle_t::service_t>();
+            _units.push_back([this, _l_move(handle), service]{
+                handle_t::spawn(
+                    std::move(handle.unit),
+                    service,
+                    _scheduler
+                );
+            });
         }
 
     };

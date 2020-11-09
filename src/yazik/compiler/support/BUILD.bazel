@@ -20,6 +20,7 @@ cc.library(
     deps = [
         ":support",
         "//src/yazik/rpc/base",
+        "@com_github_boost_ext_di//:di",
     ],
     visibility = ["//visibility:public"],
 )

@@ -167,7 +167,7 @@ namespace yazik::rpc::grpc {
         _queue->Shutdown();
     }
 
-    utility::intrusive_ptr<GrpcQueueScheduler> GrpcQueueScheduler::create() {
+    intrusive_ptr<GrpcQueueScheduler> GrpcQueueScheduler::create() {
         return new GrpcQueueScheduler{ std::make_unique<::grpc::CompletionQueue>() };
     }
 
@@ -303,7 +303,7 @@ namespace yazik::rpc::grpc {
         return tag.operator co_await();
     }
 
-    utility::intrusive_ptr<GrpcQueueThreadScheduler> GrpcQueueThreadScheduler::create() {
+    intrusive_ptr<GrpcQueueThreadScheduler> GrpcQueueThreadScheduler::create() {
         return new GrpcQueueThreadScheduler { std::make_unique<::grpc::CompletionQueue>() };
     }
 

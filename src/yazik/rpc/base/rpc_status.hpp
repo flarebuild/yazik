@@ -1,5 +1,7 @@
 #pragma once
 
+#include <folly/Format.h>
+
 #include <yazik/concurrency/task.hpp>
 #include <yazik/concurrency/channel.hpp>
 #include <yazik/utility/result.hpp>
@@ -28,7 +30,7 @@ namespace yazik::rpc {
         using Super::Status;
 
         string to_error_string() const {
-            return do_format("rpc: status: {}", Super::to_error_string());
+            return do_format("rpc status: {}", Super::to_error_string());
         }
 
         static inline RpcStatus ok() noexcept {
@@ -38,7 +40,7 @@ namespace yazik::rpc {
         inline bool is_ok() noexcept { return Super::_value == Status::Ok; }
 
         static inline RpcStatus cancelled() noexcept {
-            return { Status::Cancelled, "cancelled" };
+            return { Status::Cancelled, "Cancelled" };
         }
 
         static inline RpcStatus invalid_argument(string error) noexcept {
@@ -78,7 +80,7 @@ namespace yazik::rpc {
         }
 
         inline static RpcStatus unimplemenmted() noexcept {
-            return {Status::Unimplemented, ""};
+            return {Status::Unimplemented, "unimplemenmted"};
         }
 
         inline static RpcStatus unexpected(string error) noexcept {
@@ -106,9 +108,23 @@ namespace yazik::rpc {
 
         template<typename T = void>
         Task<T, RpcStatus> as_broken_task() const {
-            return yaz_fail_t<T, RpcStatus>(*this);
+            return yaz_fail_t<T, RpcStatus>(RpcStatus{*this});
         }
 
     };
 
 } // end of ::yazik::rpc namespace
+
+template <>
+class ::folly::FormatValue<::yazik::rpc::RpcStatus> {
+    const ::yazik::rpc::RpcStatus& _sts;
+public:
+    explicit FormatValue(const ::yazik::rpc::RpcStatus& sts)
+    : _sts { sts }
+    {}
+
+    template <class FormatCallback>
+    void format(::folly::FormatArg& arg, FormatCallback& cb) const {
+        FormatValue<::yazik::string> { _sts.to_error_string() }.format(arg, cb);
+    }
+};
