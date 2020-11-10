@@ -2,11 +2,12 @@
 
 #include <yazik/compiler/support/grpc_support.hpp>
 #include <book/sample.yaz.rpc.h>
+#include <book/sample.yaz.pb.h>
 #include <book/sample.grpc.pb.h>
 
 namespace com::book {
 
-    template <c_book_service_get_book_unit Unit>
+    template <c_book_service_get_book_unit Unit = class BookServiceGetBookUnit>
     struct BookServiceGetBookGrpcHandle: ::yazik::compiler::support::Initializer {
         using base_service_t = BookService;
         using service_t = BookService::AsyncService;
@@ -14,6 +15,9 @@ namespace com::book {
         using response_t = Book;
         using context_t = BookServiceGetBookCtx;
         using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;
+
+        Unit unit;
+        BookServiceGetBookGrpcHandle(Unit unit): unit(std::move(unit)) {}
 
         static ::yazik::OneWayTask spawn(
             Unit unit,
@@ -50,6 +54,17 @@ namespace com::book {
                 )
             };
 
+            if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_t>){
+                unit.identify(ctx, request);
+            } else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_t>){
+                co_await unit.identify(ctx, request).wrapped();
+            }
+
+
+            if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>){
+                unit.on_start(ctx);
+            }
+
             ::yazik::rpc::RpcResult<context_t::Tag> result;
             if constexpr (c_book_service_get_book_sync_unit<Unit>) {
                 result = unit(ctx, GetBookRequestPbSpec::wrap(request));
@@ -58,12 +73,18 @@ namespace com::book {
             }
 
             if (result) {
+                if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                    unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());
+                }
                 responder.Finish(
                     response,
                     ::grpc::Status::OK,
                     stepper.tag()
                 );
             } else {
+                if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                    unit.on_finish(ctx, result.error());
+                }
                 responder.FinishWithError(
                     ::yazik::rpc::grpc::grpc_from_rpc_status(result.error()),
                     stepper.tag()
@@ -75,7 +96,7 @@ namespace com::book {
         }
     };
 
-    template <c_book_service_get_books_via_author_unit Unit>
+    template <c_book_service_get_books_via_author_unit Unit = class BookServiceGetBooksViaAuthorUnit>
     struct BookServiceGetBooksViaAuthorGrpcHandle: ::yazik::compiler::support::Initializer {
         using base_service_t = BookService;
         using service_t = BookService::AsyncService;
@@ -83,6 +104,9 @@ namespace com::book {
         using response_t = Book;
         using context_t = BookServiceGetBooksViaAuthorCtx;
         using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;
+
+        Unit unit;
+        BookServiceGetBooksViaAuthorGrpcHandle(Unit unit): unit(std::move(unit)) {}
 
         static ::yazik::OneWayTask spawn(
             Unit unit,
@@ -119,9 +143,23 @@ namespace com::book {
                 )
             };
 
+            if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_t>){
+                unit.identify(ctx, request);
+            } else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_t>){
+                co_await unit.identify(ctx, request).wrapped();
+            }
+
+
+            if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>){
+                unit.on_start(ctx);
+            }
+
             auto channel = unit(ctx, GetBookViaAuthorPbSpec::wrap(request));
             if (auto result = channel.one_result_only()) {
                 if (*result) {
+                    if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                        unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());
+                    }
                     writer.WriteAndFinish(
                         response,
                         ::grpc::WriteOptions{},
@@ -129,6 +167,9 @@ namespace com::book {
                         stepper.tag()
                     );
                 } else {
+                    if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                        unit.on_finish(ctx, result->error());
+                    }
                     writer.Finish(
                         ::yazik::rpc::grpc::grpc_from_rpc_status(result->error()),
                         stepper.tag()
@@ -140,12 +181,18 @@ namespace com::book {
                     writer.Write(response, stepper.tag());
                     response = response_t{};
                     if (!(co_await stepper.step(YAZ_LOCATION_STR))) {
+                        if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                            unit.on_finish(ctx, ::yazik::rpc::RpcStatus::cancelled());
+                        }
                         writer.Finish(::grpc::Status::CANCELLED, stepper.tag());
                         co_await stepper.step(YAZ_LOCATION_STR);
                         co_return;
                     }
                 }
                 co_await scheduler->ensure_on(YAZ_LOCATION_STR);
+                if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                    unit.on_finish(ctx, channel.status());
+                }
                 writer.Finish(
                     ::yazik::rpc::grpc::grpc_from_rpc_status(channel.status()),
                     stepper.tag()
@@ -157,7 +204,7 @@ namespace com::book {
         }
     };
 
-    template <c_book_service_get_greatest_book_unit Unit>
+    template <c_book_service_get_greatest_book_unit Unit = class BookServiceGetGreatestBookUnit>
     struct BookServiceGetGreatestBookGrpcHandle: ::yazik::compiler::support::Initializer {
         using base_service_t = BookService;
         using service_t = BookService::AsyncService;
@@ -165,6 +212,9 @@ namespace com::book {
         using response_t = Book;
         using context_t = BookServiceGetGreatestBookCtx;
         using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;
+
+        Unit unit;
+        BookServiceGetGreatestBookGrpcHandle(Unit unit): unit(std::move(unit)) {}
 
         static ::yazik::OneWayTask spawn(
             Unit unit,
@@ -185,6 +235,17 @@ namespace com::book {
                 cq,
                 stepper.tag()
             );
+            request_t request_msg;
+            auto request = [&]() -> ::yazik::rpc::RpcChannel<GetBookRequestEntityRef> {
+                for (;;) {
+                    reader.Read(&request_msg, stepper.tag());
+                    if (!(co_await stepper.step(YAZ_LOCATION_STR))) {
+                        break;
+                    }
+                    co_yield GetBookRequestPbSpec::wrap(request_msg);
+                    request_msg = request_t{};
+                }
+            }();
 
             co_await stepper.step(YAZ_LOCATION_STR);
             spawn(unit, service, scheduler);
@@ -199,29 +260,36 @@ namespace com::book {
                 )
             };
 
-            request_t request;
+            if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_t>){
+                unit.identify(ctx, request);
+            } else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_t>){
+                co_await unit.identify(ctx, request).wrapped();
+            }
+
+
+            if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>){
+                unit.on_start(ctx);
+            }
+
             auto result = co_await unit(
                 ctx,
-                [&]() -> ::yazik::rpc::RpcChannel<GetBookRequestEntityRef> {
-                    for (;;) {
-                        reader.Read(&request, stepper.tag());
-                        if (!(co_await stepper.step(YAZ_LOCATION_STR))) {
-                            break;
-                        }
-                        co_yield GetBookRequestPbSpec::wrap(request);
-                        request = request_t{};
-                    }
-                }
+                std::move(request)
             ).wrapped();
             co_await scheduler->ensure_on(YAZ_LOCATION_STR);
 
             if (result) {
+                if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                    unit.on_finish(ctx, ::yazik::rpc::RpcStatus::ok());
+                }
                 reader.Finish(
                     response,
                     ::grpc::Status::OK,
                     stepper.tag()
                 );
             } else {
+                if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>){
+                    unit.on_finish(ctx, result.error());
+                }
                 reader.FinishWithError(
                     ::yazik::rpc::grpc::grpc_from_rpc_status(result.error()),
                     stepper.tag()

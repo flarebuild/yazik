@@ -25,7 +25,7 @@ namespace yazik::compiler::support {
 
         template<typename Entity>
         static inline Entity create_entity(
-            const void* ptr,
+            void* ptr,
             const typename Entity::Vtable* vtable
         ) noexcept {
             return { ptr, vtable };

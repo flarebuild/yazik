@@ -82,17 +82,22 @@ namespace com::book {
     struct AuthorVtable {
         using name_fn = std::string_view (*)(const void*);
         name_fn name;
+        using as_builder_fn = AuthorBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class AuthorEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const AuthorVtable* _vtable;
 
-        AuthorEntityRef(const void* ptr, const AuthorVtable* vtable) noexcept
+        AuthorEntityRef(void* ptr, const AuthorVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class AuthorBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -100,12 +105,18 @@ namespace com::book {
         using Vtable = AuthorVtable;
 
         [[nodiscard]] std::string_view name() const;
+        [[nodiscard]] AuthorBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct AuthorBuilderVtable {
         using set_name_fn = void (*)(const void*, std::string);
         set_name_fn set_name;
-        using as_ref_fn = AuthorEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = AuthorEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -126,6 +137,8 @@ namespace com::book {
         using Vtable = AuthorBuilderVtable;
 
         void set_name(std::string);
+        void move_initialize_from(AuthorEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] AuthorEntityRef as_ref();
     };
 
@@ -153,6 +166,8 @@ namespace com::book {
 
         Self& name(std::string);
 
+        Self& move_from(AuthorEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -161,17 +176,22 @@ namespace com::book {
     struct InsideOneOfMessageVtable {
         using field_fn = std::string_view (*)(const void*);
         field_fn field;
+        using as_builder_fn = InsideOneOfMessageBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class InsideOneOfMessageEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const InsideOneOfMessageVtable* _vtable;
 
-        InsideOneOfMessageEntityRef(const void* ptr, const InsideOneOfMessageVtable* vtable) noexcept
+        InsideOneOfMessageEntityRef(void* ptr, const InsideOneOfMessageVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class InsideOneOfMessageBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -179,12 +199,18 @@ namespace com::book {
         using Vtable = InsideOneOfMessageVtable;
 
         [[nodiscard]] std::string_view field() const;
+        [[nodiscard]] InsideOneOfMessageBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct InsideOneOfMessageBuilderVtable {
         using set_field_fn = void (*)(const void*, std::string);
         set_field_fn set_field;
-        using as_ref_fn = InsideOneOfMessageEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = InsideOneOfMessageEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -205,6 +231,8 @@ namespace com::book {
         using Vtable = InsideOneOfMessageBuilderVtable;
 
         void set_field(std::string);
+        void move_initialize_from(InsideOneOfMessageEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] InsideOneOfMessageEntityRef as_ref();
     };
 
@@ -232,6 +260,8 @@ namespace com::book {
 
         Self& field(std::string);
 
+        Self& move_from(InsideOneOfMessageEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -240,17 +270,22 @@ namespace com::book {
     struct BookPageVtable {
         using lines_fn = ::ranges::any_view<std::string_view> (*)(const void*);
         lines_fn lines;
+        using as_builder_fn = BookPageBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class BookPageEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const BookPageVtable* _vtable;
 
-        BookPageEntityRef(const void* ptr, const BookPageVtable* vtable) noexcept
+        BookPageEntityRef(void* ptr, const BookPageVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class BookPageBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -258,6 +293,8 @@ namespace com::book {
         using Vtable = BookPageVtable;
 
         [[nodiscard]] ::ranges::any_view<std::string_view> lines() const;
+        [[nodiscard]] BookPageBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct BookPageBuilderVtable {
@@ -267,7 +304,11 @@ namespace com::book {
         >;
         using lines_builder_args_factory_fn = lines_args_tuple_t (*)(void*);
         lines_builder_args_factory_fn lines_builder_args_factory;
-        using as_ref_fn = BookPageEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = BookPageEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -294,6 +335,8 @@ namespace com::book {
 
         template <c_book_page_lines_clbk Fn>
         void set_lines(Fn&&);
+        void move_initialize_from(BookPageEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] BookPageEntityRef as_ref();
     };
 
@@ -320,6 +363,8 @@ namespace com::book {
     public:
 
         ::yazik::compiler::support::VecLayeredBuilder<std::string, Self> lines();
+
+        Self& move_from(BookPageEntityRef&&);
 
         inline Parent done() {
             return std::move(this->_parent);
@@ -496,17 +541,22 @@ namespace com::book {
         recommended_fn recommended;
         using second_oneof_fn = BookSecondOneofVariantRef (*)(const void*);
         second_oneof_fn second_oneof;
+        using as_builder_fn = BookBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class BookEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const BookVtable* _vtable;
 
-        BookEntityRef(const void* ptr, const BookVtable* vtable) noexcept
+        BookEntityRef(void* ptr, const BookVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class BookBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -521,6 +571,8 @@ namespace com::book {
         [[nodiscard]] BookAvailabilityEnum availability() const;
         [[nodiscard]] CanRecommendEnum recommended() const;
         [[nodiscard]] BookSecondOneofVariantRef second_oneof() const;
+        [[nodiscard]] BookBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct BookBuilderVtable {
@@ -557,7 +609,11 @@ namespace com::book {
         >;
         using second_oneof_builder_args_factory_fn = second_oneof_args_tuple_t (*)(void*);
         second_oneof_builder_args_factory_fn second_oneof_builder_args_factory;
-        using as_ref_fn = BookEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = BookEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -609,6 +665,8 @@ namespace com::book {
         void set_recommended(CanRecommendEnum::Value);
         template <c_book_second_oneof_clbk Fn>
         void set_second_oneof(Fn&&);
+        void move_initialize_from(BookEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] BookEntityRef as_ref();
     };
 
@@ -641,6 +699,8 @@ namespace com::book {
         Self& availability(BookAvailabilityEnum::Value);
         Self& recommended(CanRecommendEnum::Value);
 
+        Self& move_from(BookEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -649,17 +709,22 @@ namespace com::book {
     struct GetBookRequestVtable {
         using isbn_fn = int64_t (*)(const void*);
         isbn_fn isbn;
+        using as_builder_fn = GetBookRequestBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class GetBookRequestEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const GetBookRequestVtable* _vtable;
 
-        GetBookRequestEntityRef(const void* ptr, const GetBookRequestVtable* vtable) noexcept
+        GetBookRequestEntityRef(void* ptr, const GetBookRequestVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class GetBookRequestBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -667,12 +732,18 @@ namespace com::book {
         using Vtable = GetBookRequestVtable;
 
         [[nodiscard]] int64_t isbn() const;
+        [[nodiscard]] GetBookRequestBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct GetBookRequestBuilderVtable {
         using set_isbn_fn = void (*)(const void*, int64_t);
         set_isbn_fn set_isbn;
-        using as_ref_fn = GetBookRequestEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = GetBookRequestEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -693,6 +764,8 @@ namespace com::book {
         using Vtable = GetBookRequestBuilderVtable;
 
         void set_isbn(int64_t);
+        void move_initialize_from(GetBookRequestEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] GetBookRequestEntityRef as_ref();
     };
 
@@ -720,6 +793,8 @@ namespace com::book {
 
         Self& isbn(int64_t);
 
+        Self& move_from(GetBookRequestEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -728,17 +803,22 @@ namespace com::book {
     struct GetBookViaAuthorVtable {
         using author_fn = std::string_view (*)(const void*);
         author_fn author;
+        using as_builder_fn = GetBookViaAuthorBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class GetBookViaAuthorEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const GetBookViaAuthorVtable* _vtable;
 
-        GetBookViaAuthorEntityRef(const void* ptr, const GetBookViaAuthorVtable* vtable) noexcept
+        GetBookViaAuthorEntityRef(void* ptr, const GetBookViaAuthorVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class GetBookViaAuthorBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -746,12 +826,18 @@ namespace com::book {
         using Vtable = GetBookViaAuthorVtable;
 
         [[nodiscard]] std::string_view author() const;
+        [[nodiscard]] GetBookViaAuthorBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct GetBookViaAuthorBuilderVtable {
         using set_author_fn = void (*)(const void*, std::string);
         set_author_fn set_author;
-        using as_ref_fn = GetBookViaAuthorEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = GetBookViaAuthorEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -772,6 +858,8 @@ namespace com::book {
         using Vtable = GetBookViaAuthorBuilderVtable;
 
         void set_author(std::string);
+        void move_initialize_from(GetBookViaAuthorEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] GetBookViaAuthorEntityRef as_ref();
     };
 
@@ -799,6 +887,8 @@ namespace com::book {
 
         Self& author(std::string);
 
+        Self& move_from(GetBookViaAuthorEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -807,17 +897,22 @@ namespace com::book {
     struct BookStoreVtable {
         using name_fn = std::string_view (*)(const void*);
         name_fn name;
+        using as_builder_fn = BookStoreBuilder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class BookStoreEntityRef {
-        const void* _ptr;
+        void* _ptr;
         const BookStoreVtable* _vtable;
 
-        BookStoreEntityRef(const void* ptr, const BookStoreVtable* vtable) noexcept
+        BookStoreEntityRef(void* ptr, const BookStoreVtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class BookStoreBuilder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -825,12 +920,18 @@ namespace com::book {
         using Vtable = BookStoreVtable;
 
         [[nodiscard]] std::string_view name() const;
+        [[nodiscard]] BookStoreBuilder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct BookStoreBuilderVtable {
         using set_name_fn = void (*)(const void*, std::string);
         set_name_fn set_name;
-        using as_ref_fn = BookStoreEntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = BookStoreEntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -851,6 +952,8 @@ namespace com::book {
         using Vtable = BookStoreBuilderVtable;
 
         void set_name(std::string);
+        void move_initialize_from(BookStoreEntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] BookStoreEntityRef as_ref();
     };
 
@@ -878,6 +981,8 @@ namespace com::book {
 
         Self& name(std::string);
 
+        Self& move_from(BookStoreEntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -886,17 +991,22 @@ namespace com::book {
     struct CycleDep1Vtable {
         using dep_fn = CycleDep2EntityRef (*)(const void*);
         dep_fn dep;
+        using as_builder_fn = CycleDep1Builder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class CycleDep1EntityRef {
-        const void* _ptr;
+        void* _ptr;
         const CycleDep1Vtable* _vtable;
 
-        CycleDep1EntityRef(const void* ptr, const CycleDep1Vtable* vtable) noexcept
+        CycleDep1EntityRef(void* ptr, const CycleDep1Vtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class CycleDep1Builder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -904,6 +1014,8 @@ namespace com::book {
         using Vtable = CycleDep1Vtable;
 
         [[nodiscard]] CycleDep2EntityRef dep() const;
+        [[nodiscard]] CycleDep1Builder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct CycleDep1BuilderVtable {
@@ -913,7 +1025,11 @@ namespace com::book {
         >;
         using dep_builder_args_factory_fn = dep_args_tuple_t (*)(void*);
         dep_builder_args_factory_fn dep_builder_args_factory;
-        using as_ref_fn = CycleDep1EntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = CycleDep1EntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -940,6 +1056,8 @@ namespace com::book {
 
         template <c_cycle_dep1_dep_clbk Fn>
         void set_dep(Fn&&);
+        void move_initialize_from(CycleDep1EntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] CycleDep1EntityRef as_ref();
     };
 
@@ -967,6 +1085,8 @@ namespace com::book {
 
         CycleDep2LayeredBuilder<Self> dep();
 
+        Self& move_from(CycleDep1EntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -975,17 +1095,22 @@ namespace com::book {
     struct CycleDep2Vtable {
         using dep_fn = CycleDep1EntityRef (*)(const void*);
         dep_fn dep;
+        using as_builder_fn = CycleDep2Builder (*)(void*);
+        as_builder_fn as_builder;
+        using serialize_fn = std::string (*)(void*);
+        serialize_fn serialize;
     };
 
     class CycleDep2EntityRef {
-        const void* _ptr;
+        void* _ptr;
         const CycleDep2Vtable* _vtable;
 
-        CycleDep2EntityRef(const void* ptr, const CycleDep2Vtable* vtable) noexcept
+        CycleDep2EntityRef(void* ptr, const CycleDep2Vtable* vtable) noexcept
         : _ptr { ptr }
         , _vtable { vtable }
         {}
 
+        friend class CycleDep2Builder;
         friend class ::yazik::compiler::support::Initializer;
 
     public:
@@ -993,6 +1118,8 @@ namespace com::book {
         using Vtable = CycleDep2Vtable;
 
         [[nodiscard]] CycleDep1EntityRef dep() const;
+        [[nodiscard]] CycleDep2Builder as_builder();
+        [[nodiscard]] std::string serialize();
     };
 
     struct CycleDep2BuilderVtable {
@@ -1002,7 +1129,11 @@ namespace com::book {
         >;
         using dep_builder_args_factory_fn = dep_args_tuple_t (*)(void*);
         dep_builder_args_factory_fn dep_builder_args_factory;
-        using as_ref_fn = CycleDep2EntityRef (*)(const void*);
+        using move_initialize_from_fn = void (*)(void*, void*);
+        move_initialize_from_fn move_initialize_from;
+        using deserialize_fn = bool (*)(const void*, std::string_view);
+        deserialize_fn deserialize;
+        using as_ref_fn = CycleDep2EntityRef (*)(void*);
         as_ref_fn as_ref;
     };
 
@@ -1029,6 +1160,8 @@ namespace com::book {
 
         template <c_cycle_dep2_dep_clbk Fn>
         void set_dep(Fn&&);
+        void move_initialize_from(CycleDep2EntityRef&&);
+        [[nodiscard]] bool deserialize(std::string_view);
         [[nodiscard]] CycleDep2EntityRef as_ref();
     };
 
@@ -1056,6 +1189,8 @@ namespace com::book {
 
         CycleDep1LayeredBuilder<Self> dep();
 
+        Self& move_from(CycleDep2EntityRef&&);
+
         inline Parent done() {
             return std::move(this->_parent);
         }
@@ -1064,9 +1199,22 @@ namespace com::book {
     inline std::string_view AuthorEntityRef::name() const {
         return _vtable->name(_ptr);
     }
+    AuthorBuilder AuthorEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string AuthorEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void AuthorBuilder::set_name(std::string value) {
         _vtable->set_name(_ptr, std::move(value));
+    }
+    inline void AuthorBuilder::move_initialize_from(AuthorEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool AuthorBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline AuthorEntityRef AuthorBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1077,13 +1225,32 @@ namespace com::book {
         this->set_name(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto AuthorLayeredBuilder<Parent>::move_from(AuthorEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline std::string_view InsideOneOfMessageEntityRef::field() const {
         return _vtable->field(_ptr);
     }
+    InsideOneOfMessageBuilder InsideOneOfMessageEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string InsideOneOfMessageEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void InsideOneOfMessageBuilder::set_field(std::string value) {
         _vtable->set_field(_ptr, std::move(value));
+    }
+    inline void InsideOneOfMessageBuilder::move_initialize_from(InsideOneOfMessageEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool InsideOneOfMessageBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline InsideOneOfMessageEntityRef InsideOneOfMessageBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1094,9 +1261,21 @@ namespace com::book {
         this->set_field(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto InsideOneOfMessageLayeredBuilder<Parent>::move_from(InsideOneOfMessageEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline ::ranges::any_view<std::string_view> BookPageEntityRef::lines() const {
         return _vtable->lines(_ptr);
+    }
+    BookPageBuilder BookPageEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string BookPageEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
     }
 
     template <c_book_page_lines_clbk Fn>
@@ -1104,6 +1283,13 @@ namespace com::book {
         auto args = _vtable->lines_builder_args_factory(_ptr);
         auto builder = create_builder<::yazik::compiler::support::VecBuilder<std::string>>(std::move(args));
         fn(builder);
+    }
+    inline void BookPageBuilder::move_initialize_from(BookPageEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool BookPageBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline BookPageEntityRef BookPageBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1113,6 +1299,12 @@ namespace com::book {
     inline auto BookPageLayeredBuilder<Parent>::lines() -> ::yazik::compiler::support::VecLayeredBuilder<std::string, Self> {
         auto args = this->_vtable->lines_builder_args_factory(this->_ptr);
         return create_builder_with_parent<::yazik::compiler::support::VecLayeredBuilder<std::string, Self>>(std::move(args), this);
+    }
+    template<typename Parent>
+    auto BookPageLayeredBuilder<Parent>::move_from(BookPageEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
     }
 
     inline bool BookFirstOneofVariantRef::is_first_oneof_string() const {
@@ -1194,6 +1386,12 @@ namespace com::book {
     inline BookSecondOneofVariantRef BookEntityRef::second_oneof() const {
         return _vtable->second_oneof(_ptr);
     }
+    BookBuilder BookEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string BookEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void BookBuilder::set_isbn(int64_t value) {
         _vtable->set_isbn(_ptr, std::move(value));
@@ -1231,6 +1429,13 @@ namespace com::book {
         auto builder = create_builder<BookSecondOneofVariantBuilder>(std::move(args));
         fn(builder);
     }
+    inline void BookBuilder::move_initialize_from(BookEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool BookBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
+    }
     inline BookEntityRef BookBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
     }
@@ -1265,13 +1470,32 @@ namespace com::book {
         this->set_recommended(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto BookLayeredBuilder<Parent>::move_from(BookEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline int64_t GetBookRequestEntityRef::isbn() const {
         return _vtable->isbn(_ptr);
     }
+    GetBookRequestBuilder GetBookRequestEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string GetBookRequestEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void GetBookRequestBuilder::set_isbn(int64_t value) {
         _vtable->set_isbn(_ptr, std::move(value));
+    }
+    inline void GetBookRequestBuilder::move_initialize_from(GetBookRequestEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool GetBookRequestBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline GetBookRequestEntityRef GetBookRequestBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1282,13 +1506,32 @@ namespace com::book {
         this->set_isbn(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto GetBookRequestLayeredBuilder<Parent>::move_from(GetBookRequestEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline std::string_view GetBookViaAuthorEntityRef::author() const {
         return _vtable->author(_ptr);
     }
+    GetBookViaAuthorBuilder GetBookViaAuthorEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string GetBookViaAuthorEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void GetBookViaAuthorBuilder::set_author(std::string value) {
         _vtable->set_author(_ptr, std::move(value));
+    }
+    inline void GetBookViaAuthorBuilder::move_initialize_from(GetBookViaAuthorEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool GetBookViaAuthorBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline GetBookViaAuthorEntityRef GetBookViaAuthorBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1299,13 +1542,32 @@ namespace com::book {
         this->set_author(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto GetBookViaAuthorLayeredBuilder<Parent>::move_from(GetBookViaAuthorEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline std::string_view BookStoreEntityRef::name() const {
         return _vtable->name(_ptr);
     }
+    BookStoreBuilder BookStoreEntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string BookStoreEntityRef::serialize() {
+        return _vtable->serialize(_ptr);
+    }
 
     inline void BookStoreBuilder::set_name(std::string value) {
         _vtable->set_name(_ptr, std::move(value));
+    }
+    inline void BookStoreBuilder::move_initialize_from(BookStoreEntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool BookStoreBuilder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline BookStoreEntityRef BookStoreBuilder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1316,9 +1578,21 @@ namespace com::book {
         this->set_name(std::move(value));
         return *this;
     }
+    template<typename Parent>
+    auto BookStoreLayeredBuilder<Parent>::move_from(BookStoreEntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline CycleDep2EntityRef CycleDep1EntityRef::dep() const {
         return _vtable->dep(_ptr);
+    }
+    CycleDep1Builder CycleDep1EntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string CycleDep1EntityRef::serialize() {
+        return _vtable->serialize(_ptr);
     }
 
     template <c_cycle_dep1_dep_clbk Fn>
@@ -1326,6 +1600,13 @@ namespace com::book {
         auto args = _vtable->dep_builder_args_factory(_ptr);
         auto builder = create_builder<CycleDep2Builder>(std::move(args));
         fn(builder);
+    }
+    inline void CycleDep1Builder::move_initialize_from(CycleDep1EntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool CycleDep1Builder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline CycleDep1EntityRef CycleDep1Builder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1336,9 +1617,21 @@ namespace com::book {
         auto args = this->_vtable->dep_builder_args_factory(this->_ptr);
         return create_builder_with_parent<CycleDep2LayeredBuilder<Self>>(std::move(args), this);
     }
+    template<typename Parent>
+    auto CycleDep1LayeredBuilder<Parent>::move_from(CycleDep1EntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
+    }
 
     inline CycleDep1EntityRef CycleDep2EntityRef::dep() const {
         return _vtable->dep(_ptr);
+    }
+    CycleDep2Builder CycleDep2EntityRef::as_builder() {
+        return _vtable->as_builder(_ptr);
+    }
+    [[nodiscard]] std::string CycleDep2EntityRef::serialize() {
+        return _vtable->serialize(_ptr);
     }
 
     template <c_cycle_dep2_dep_clbk Fn>
@@ -1346,6 +1639,13 @@ namespace com::book {
         auto args = _vtable->dep_builder_args_factory(_ptr);
         auto builder = create_builder<CycleDep1Builder>(std::move(args));
         fn(builder);
+    }
+    inline void CycleDep2Builder::move_initialize_from(CycleDep2EntityRef&& e) 
+    {
+        return _vtable->move_initialize_from(_ptr, e._ptr);
+    }
+    inline bool CycleDep2Builder::deserialize(std::string_view data) {
+        return _vtable->deserialize(_ptr, std::move(data));
     }
     inline CycleDep2EntityRef CycleDep2Builder::as_ref() {
         return _vtable->as_ref(_ptr);
@@ -1355,6 +1655,12 @@ namespace com::book {
     inline auto CycleDep2LayeredBuilder<Parent>::dep() -> CycleDep1LayeredBuilder<Self> {
         auto args = this->_vtable->dep_builder_args_factory(this->_ptr);
         return create_builder_with_parent<CycleDep1LayeredBuilder<Self>>(std::move(args), this);
+    }
+    template<typename Parent>
+    auto CycleDep2LayeredBuilder<Parent>::move_from(CycleDep2EntityRef&& r) -> Self&
+    {
+        this->move_initialize_from(std::move(r));
+        return *this;
     }
 
 }

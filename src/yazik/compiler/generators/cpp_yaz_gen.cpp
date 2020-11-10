@@ -407,6 +407,10 @@ namespace yazik::compiler {
                     w.wl("using {}_fn = {} (*)(const void*);", getter, type);
                     w.wl("{0}_fn {0};", getter);
                 }
+                w.wl("using as_builder_fn = {}Builder (*)(void*);", tname);
+                w.wl("as_builder_fn as_builder;");
+                w.wl("using serialize_fn = std::string (*)(void*);");
+                w.wl("serialize_fn serialize;");
             });
         w.l();
     }
@@ -416,14 +420,15 @@ namespace yazik::compiler {
 
         w.w("class {}EntityRef ", tname)
             .class_braced([&] {
-                w.wl("const void* _ptr;");
+                w.wl("void* _ptr;");
                 w.wl("const {}Vtable* _vtable;", tname);
                 w.l();
-                w.wl("{0}EntityRef(const void* ptr, const {0}Vtable* vtable) noexcept", tname);
+                w.wl("{0}EntityRef(void* ptr, const {0}Vtable* vtable) noexcept", tname);
                 w.wl(": _ptr {{ ptr }}");
                 w.wl(", _vtable {{ vtable }}");
                 w.wl("{{}}");
                 w.l();
+                w.wl("friend class {}Builder;", tname);
                 w.wl("friend class ::yazik::compiler::support::Initializer;");
                 w.l();
                 w.wl_outdent("public:");
@@ -451,6 +456,8 @@ namespace yazik::compiler {
                     std::string type = f.resolve_type(field);
                     w.wl("[[nodiscard]] {} {}() const;", type, getter);
                 }
+                w.wl("[[nodiscard]] {}Builder as_builder();", tname);
+                w.wl("[[nodiscard]] std::string serialize();");
             });
         w.l();
     }
@@ -477,10 +484,11 @@ namespace yazik::compiler {
                         w.wl("set_{0}_fn set_{0};", getter);
                     }
                 }
+                w.wl("using move_initialize_from_fn = void (*)(void*, void*);");
+                w.wl("move_initialize_from_fn move_initialize_from;");
                 w.wl("using deserialize_fn = bool (*)(const void*, std::string_view);");
                 w.wl("deserialize_fn deserialize;");
-
-                w.wl("using as_ref_fn = {0}EntityRef (*)(const void*);", tname);
+                w.wl("using as_ref_fn = {0}EntityRef (*)(void*);", tname);
                 w.wl("as_ref_fn as_ref;");
             });
         w.l();
@@ -539,6 +547,7 @@ namespace yazik::compiler {
                         w.wl("void set_{}({});", getter, type);
                     }
                 }
+                w.wl("void move_initialize_from({}EntityRef&&);", tname);
                 w.wl("[[nodiscard]] bool deserialize(std::string_view);");
                 w.wl("[[nodiscard]] {}EntityRef as_ref();", tname);
             }, false)
@@ -607,6 +616,8 @@ namespace yazik::compiler {
                     }
                 }
                 w.l();
+                w.wl("Self& move_from({}EntityRef&&);", tname);
+                w.l();
                 w.w("inline Parent done() ")
                     .braced([&] {
                         w.wl("return std::move(this->_parent);");
@@ -667,6 +678,14 @@ namespace yazik::compiler {
                     w.wl("return _vtable->{}(_ptr);", getter);
                 });
         }
+        w.w("inline {0}Builder {0}EntityRef::as_builder() ", tname)
+            .braced([&] {
+                w.wl("return _vtable->as_builder(_ptr);");
+            });
+        w.w("inline std::string {}EntityRef::serialize() ", tname)
+            .braced([&] {
+                w.wl("return _vtable->serialize(_ptr);");
+            });
         w.l();
     }
 
@@ -697,6 +716,10 @@ namespace yazik::compiler {
                     });
             }
         }
+        w.wl("inline void {0}Builder::move_initialize_from({0}EntityRef&& e) ", tname)
+            .braced([&] {
+                w.wl("return _vtable->move_initialize_from(_ptr, e._ptr);");
+            });
 
         w.w("inline bool {}Builder::deserialize(std::string_view data) ", tname)
             .braced([&] {
@@ -768,6 +791,12 @@ namespace yazik::compiler {
                     });
             }
         }
+        w.wl("template<typename Parent>");
+        w.wl("auto {0}LayeredBuilder<Parent>::move_from({0}EntityRef&& r) -> Self&", tname)
+            .braced([&] {
+                w.wl("this->move_initialize_from(std::move(r));");
+                w.wl("return *this;");
+            });
         w.l();
     }
 

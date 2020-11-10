@@ -68,13 +68,17 @@ namespace yazik::compiler {
     void GenPb::type_resolver(const gp::FieldDescriptor* field, const std::string& getter) {
         using gpfd = gp::FieldDescriptor;
         if (field->is_repeated()) {
-            w.w("return ::ranges::views::all(a->{}())", getter);
+            if (field->message_type()) {
+                w.w("return ::ranges::views::all(*a->mutable_{}())", getter);
+            } else {
+                w.w("return ::ranges::views::all(a->{}())", getter);
+            }
             switch (field->type()) {
             case gpfd::TYPE_MESSAGE:
                 w.l().with_indent([&] {
                     std::string msg_pbtype = f.pb_type_name(field->message_type());
                     std::string msg_type = f.type_name(field->message_type());
-                    w.w("| ::ranges::views::transform([](const {}& x) ", msg_pbtype)
+                    w.w("| ::ranges::views::transform([]({}& x) ", msg_pbtype)
                         .braced_detail([&] {
                             w.wl("return {}PbSpec::wrap(x);", msg_type);
                         }, false)
@@ -108,7 +112,7 @@ namespace yazik::compiler {
         } else {
             switch (field->type()) {
             case gpfd::TYPE_MESSAGE:
-                w.wl("return {}PbSpec::wrap(a->{}());", f.type_name(field->message_type()), getter);
+                w.wl("return {}PbSpec::wrap(*a->mutable_{}());", f.type_name(field->message_type()), getter);
                 break;
             case gpfd::TYPE_ENUM:
                 w.wl("return create_enum<{}Enum>((int)a->{}());", f.type_name(field->enum_type()), getter);
@@ -202,7 +206,7 @@ namespace yazik::compiler {
                     std::string type = f.resolve_type(field);
 
                     w.wl("[[nodiscard]] static bool is_{}(const {}*);", getter, parent_pb_type);
-                    w.wl("[[nodiscard]] static {} {}(const {}*);", type, getter, parent_pb_type);
+                    w.wl("[[nodiscard]] static {} {}({}*);", type, getter, parent_pb_type);
                 }
 
                 w.wl("[[nodiscard]] static bool is_null(const {}* a);", parent_pb_type);
@@ -228,9 +232,9 @@ namespace yazik::compiler {
                     });
 
                 w.l();
-                w.w("static inline {}VariantRef wrap(const {}& a) ", tname, parent_pb_type)
+                w.w("static inline {}VariantRef wrap({}& a) ", tname, parent_pb_type)
                     .braced([&] {
-                        w.wl("return create_entity<{}VariantRef>(static_cast<const void*>(&a), vtable());", tname);
+                        w.wl("return create_entity<{}VariantRef>(static_cast<void*>(&a), vtable());", tname);
                     });
             });
         w.l();
@@ -312,7 +316,7 @@ namespace yazik::compiler {
                     );
                 });
 
-            w.w("inline {} {}PbSpec::{}(const {}* a) ", type, tname, getter, parent_pb_type)
+            w.w("inline {} {}PbSpec::{}({}* a) ", type, tname, getter, parent_pb_type)
                 .braced([&] {
                     type_resolver(field, getter);
                 });
@@ -393,7 +397,7 @@ namespace yazik::compiler {
                         std::string type = f.type_name(one_of);
                         std::string getter = f.getter(field);
 
-                        w.wl("[[nodiscard]] static {}VariantRef {}(const {}*);", type, getter, pbtype);
+                        w.wl("[[nodiscard]] static {}VariantRef {}({}*);", type, getter, pbtype);
 
                         continue;
                     }
@@ -403,9 +407,10 @@ namespace yazik::compiler {
 
                     std::string getter = f.getter(field);
                     std::string type = f.resolve_type(field);
-                    w.wl("[[nodiscard]] static {} {}(const {}*);", type, getter, pbtype);
+                    w.wl("[[nodiscard]] static {} {}({}*);", type, getter, pbtype);
                 }
-
+                w.wl("static {}Builder as_builder({}*);", tname, pbtype);
+                w.wl("static std::string serialize({}*);", pbtype);
                 w.l();
 
                 w.w("static inline const {}Vtable* vtable() ", tname)
@@ -430,13 +435,15 @@ namespace yazik::compiler {
                                     std::string getter = f.getter(field);
                                     w.wl(".{0} = ({1}Vtable::{0}_fn)&{1}PbSpec::{0},", getter, tname);
                                 }
+                                w.wl(".as_builder = ({0}Vtable::as_builder_fn)&{0}PbSpec::as_builder,", tname);
+                                w.wl(".serialize = ({0}Vtable::serialize_fn)&{0}PbSpec::serialize,", tname);
                             });
                         w.wl("return &s_vtable;");
                     });
                 w.l();
-                w.w("static inline {}EntityRef wrap(const {}& a)", tname, pbtype)
+                w.w("static inline {}EntityRef wrap({}& a)", tname, pbtype)
                     .braced([&] {
-                        w.wl("return create_entity<{}EntityRef>(static_cast<const void*>(&a), vtable());", tname);
+                        w.wl("return create_entity<{}EntityRef>(static_cast<void*>(&a), vtable());", tname);
                     });
             });
         w.l();
@@ -477,8 +484,9 @@ namespace yazik::compiler {
                         w.wl("static void set_{}({}*, {});", getter, pbtype, type);
                     }
                 }
+                w.wl("static void move_initialize_from({0}*, {0}*);", pbtype);
                 w.wl("[[nodiscard]] static bool deserialize({}*, std::string_view);", pbtype);
-                w.wl("[[nodiscard]] static {}EntityRef as_ref(const void*);", tname);
+                w.wl("[[nodiscard]] static {}EntityRef as_ref(void*);", tname);
                 w.l();
                 w.w("static inline const {}BuilderVtable* vtable() ", tname)
                     .braced([&]{
@@ -507,6 +515,7 @@ namespace yazik::compiler {
                                         );
                                     }
                                 }
+                                w.wl(".move_initialize_from = ({0}BuilderVtable::move_initialize_from_fn)&{0}PbBuilderSpec::move_initialize_from,", tname);
                                 w.wl(".deserialize = ({0}BuilderVtable::deserialize_fn)&{0}PbBuilderSpec::deserialize,", tname);
                                 w.wl(".as_ref = ({0}BuilderVtable::as_ref_fn)&{0}PbBuilderSpec::as_ref,", tname);
                             }, false)
@@ -574,7 +583,7 @@ namespace yazik::compiler {
                 std::string type = f.type_name(one_of);
                 std::string getter = f.getter(field);
 
-                w.w("inline {}VariantRef {}PbSpec::{}(const {}* a) ", type, tname, getter, pbtype)
+                w.w("inline {}VariantRef {}PbSpec::{}({}* a) ", type, tname, getter, pbtype)
                     .braced([&] {
                         w.wl("return {}PbSpec::wrap(*a);", type);
                     });
@@ -587,11 +596,20 @@ namespace yazik::compiler {
 
             std::string getter = f.getter(field);
             std::string type = f.resolve_type(field);
-            w.w("inline {} {}PbSpec::{}(const {}* a) ", type, tname, getter, pbtype)
+            w.w("inline {} {}PbSpec::{}({}* a) ", type, tname, getter, pbtype)
                 .braced([&] {
                     type_resolver(field, getter);
                 });
         }
+        w.w("inline {0}Builder {0}PbSpec::as_builder({1}* a) ", tname, pbtype)
+            .braced([&] {
+                w.wl("return {}PbBuilderSpec::wrap(*a);", tname);
+            });
+        w.w("std::string {}PbSpec::serialize({}* a)", tname, pbtype)
+            .braced([&] {
+                w.wl("return a->SerializeAsString();");
+            });
+
         w.l();
     }
 
@@ -644,12 +662,17 @@ namespace yazik::compiler {
                     });
             }
         }
+        w.w("inline void {0}PbBuilderSpec::move_initialize_from({1}* a, {1}* other) ", tname, pbtype)
+            .braced([&] {
+                w.wl("a->Swap(other);");
+            });
+
         w.w("inline bool {}PbBuilderSpec::deserialize({}* a, std::string_view data) ", tname, pbtype)
             .braced([&] {
                 w.wl("return a->ParseFromArray(data.data(), data.size());");
             });
 
-        w.w("inline {0}EntityRef {0}PbBuilderSpec::as_ref(const void* ptr) ", tname)
+        w.w("inline {0}EntityRef {0}PbBuilderSpec::as_ref(void* ptr) ", tname)
             .braced([&]{
                 w.wl("return create_entity<{0}EntityRef>(ptr, {0}PbSpec::vtable());", tname);
             });

@@ -54,8 +54,8 @@ namespace yazik::compiler {
                                     w.wl("static constexpr auto service_name = ::folly::makeFixedString({});", q(service->name()));
                                     w.wl("static constexpr auto method_name = ::folly::makeFixedString({});", q(method->name()));
                                 });
-                            w.wl("static constexpr Tag tag;")
-;                            w.wl("const ::yazik::concurrency::scheduler_ptr_t& scheduler;");
+                            w.wl("static constexpr Tag tag;");
+                            w.wl("const ::yazik::concurrency::scheduler_ptr_t& scheduler;");
                             w.wl("{} response;", output);
                         });
                     w.l();
@@ -214,6 +214,7 @@ namespace yazik::compiler {
                     std::string base_name = do_sformat("{}_{}", service->name(), method->name());
                     std::string name = camel_case(base_name);
                     std::string c_name = snake_case(base_name);
+                    std::string input = do_sformat("{}EntityRef", f.type_name(method->input_type()));
 
                     std::string input_tname = f.type_name(method->input_type());
                     std::string output_tname = f.type_name(method->output_type());
@@ -224,6 +225,7 @@ namespace yazik::compiler {
                             w.wl("using base_service_t = {};", service->name());
                             w.wl("using service_t = {}::AsyncService;", service->name());
                             w.wl("using request_t = {};", input_tname);
+                            w.wl("using request_yaz_t = {};", input);
                             w.wl("using response_t = {};", output_tname);
                             w.wl("using context_t = {}Ctx;", name);
                             w.wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;");
@@ -247,13 +249,14 @@ namespace yazik::compiler {
                                     w.wl("auto* cq = scheduler->server_queue();");
                                     w.l();
                                     if (method->server_streaming()) {
-                                        w.wl("request_t request;");
+                                        w.wl("request_t request_pb;");
+                                        w.wl("auto request = {}PbSpec::wrap(request_pb);", input_tname);
                                         w.wl("::grpc::ServerAsyncWriter<response_t> writer {{ &grpc_ctx }};");
 
                                         w.w("service->Request{}", method->name())
                                             .braced_detail([&]{
                                                 w.wl("&grpc_ctx,");
-                                                w.wl("&request,");
+                                                w.wl("&request_pb,");
                                                 w.wl("&writer,");
                                                 w.wl("cq,");
                                                 w.wl("cq,");
@@ -270,14 +273,31 @@ namespace yazik::compiler {
                                                 w.wl("cq,");
                                                 w.wl("stepper.tag()");
                                             }, true, "(", ");");
+
+                                        w.wl("request_t request_msg;");
+                                        w.wl("auto request_wrap = {}PbSpec::wrap(request_msg);", input_tname);
+                                        w.w("auto request = [&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
+                                            .braced_detail([&]{
+                                                w.w("for (;;) ")
+                                                    .braced([&] {
+                                                        w.wl("reader.Read(&request_msg, stepper.tag());");
+                                                        w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
+                                                            .braced([&] {
+                                                                w.wl("break;");
+                                                            });
+                                                        w.wl("co_yield request_wrap;");
+                                                        w.wl("request_msg = request_t{{}};");
+                                                    });
+                                            }, false).wl("();");
                                     } else {
-                                        w.wl("request_t request;");
+                                        w.wl("request_t request_pb;");
+                                        w.wl("auto request = {}PbSpec::wrap(request_pb);", input_tname);
                                         w.wl("::grpc::ServerAsyncResponseWriter<response_t> responder {{ &grpc_ctx }};");
 
                                         w.w("service->Request{}", method->name())
                                             .braced_detail([&]{
                                                 w.wl("&grpc_ctx,");
-                                                w.wl("&request,");
+                                                w.wl("&request_pb,");
                                                 w.wl("&responder,");
                                                 w.wl("cq,");
                                                 w.wl("cq,");
@@ -300,13 +320,23 @@ namespace yazik::compiler {
                                                 }, true, "(", ")");
                                         });
                                     w.l();
+                                    w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_yaz_t>)")
+                                        .braced_detail([&]{
+                                            w.wl("unit.identify(ctx, request);");
+                                        }, false);
+                                    w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_yaz_t>)")
+                                        .braced([&]{
+                                            w.wl("co_await unit.identify(ctx, request).wrapped();");
+                                        });
+                                    w.l();
+                                    w.l();
                                     w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>)")
                                         .braced([&]{
                                             w.wl("unit.on_start(ctx);");
                                         });
                                     w.l();
                                     if (method->server_streaming()) {
-                                        w.wl("auto channel = unit(ctx, {}PbSpec::wrap(request));", input_tname);
+                                        w.wl("auto channel = unit(ctx, std::move(request));");
                                         w.w("if (auto result = channel.one_result_only()) ")
                                             .braced_detail([&] {
                                                 w.w("if (*result) ")
@@ -366,23 +396,10 @@ namespace yazik::compiler {
                                                     }, true, "(", ");");
                                             });
                                     } else if (method->client_streaming()) {
-                                        w.wl("request_t request;");
                                         w.w("auto result = co_await unit")
                                             .braced_detail([&]{
                                                 w.wl("ctx,");
-                                                w.w("[&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
-                                                    .braced_detail([&]{
-                                                        w.w("for (;;) ")
-                                                            .braced([&] {
-                                                                w.wl("reader.Read(&request, stepper.tag());");
-                                                                w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
-                                                                    .braced([&] {
-                                                                        w.wl("break;");
-                                                                    });
-                                                                w.wl("co_yield {}PbSpec::wrap(request);", input_tname);
-                                                                w.wl("request = request_t{{}};");
-                                                            });
-                                                    }, false).wl("()");
+                                                w.wl("std::move(request)");
                                             }, false, "(", ")")
                                             .wl(".wrapped();");
                                         w.wl("co_await scheduler->ensure_on(YAZ_LOCATION_STR);");
@@ -418,11 +435,11 @@ namespace yazik::compiler {
                                         w.wl("::yazik::rpc::RpcResult<context_t::Tag> result;");
                                         w.w("if constexpr (c_{}_sync_unit<Unit>) ", c_name)
                                             .braced_detail([&] {
-                                                w.wl("result = unit(ctx, {}PbSpec::wrap(request));", input_tname);
+                                                w.wl("result = unit(ctx, std::move(request));");
                                             }, false)
                                             .w(" else ")
                                             .braced([&] {
-                                                w.wl("result = co_await unit(ctx, {}PbSpec::wrap(request)).wrapped();", input_tname);
+                                                w.wl("result = co_await unit(ctx, std::move(request)).wrapped();");
                                             });
                                         w.l();
                                         w.w("if (result) ")
