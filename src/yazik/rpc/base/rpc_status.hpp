@@ -23,6 +23,24 @@ namespace yazik::rpc {
         Unexpected
     };
 
+    static inline constexpr const char* sts_to_str(RpcStatusEnum sts) {
+        switch (sts) {
+        case RpcStatusEnum::Ok: return "ok";
+        case RpcStatusEnum::Cancelled: return "cancelled";
+        case RpcStatusEnum::InvalidArgument: return "invalid argument";
+        case RpcStatusEnum::NotFound: return "not found";
+        case RpcStatusEnum::NonAuthorized: return "non authorized";
+        case RpcStatusEnum::ResourceExhausted: return "resource exhausted";
+        case RpcStatusEnum::FailedPrecondition: return "failed precondition";
+        case RpcStatusEnum::DataCorrupted: return "data corrupted";
+        case RpcStatusEnum::Internal: return "internal";
+        case RpcStatusEnum::OutOfRange: return "out of range";
+        case RpcStatusEnum::Unimplemented: return "unimplemented";
+        case RpcStatusEnum::Unexpected: return "unexpected";
+        }
+        return "";
+    }
+
     class RpcStatus final : public detail::ResultErrorEnumBased<RpcStatusEnum> {
         using Super = detail::ResultErrorEnumBased<RpcStatusEnum>;
     public:
@@ -30,7 +48,7 @@ namespace yazik::rpc {
         using Super::Status;
 
         string to_error_string() const {
-            return do_format("rpc status: {}", Super::to_error_string());
+            return do_format("{}: {}", sts_to_str(value()), Super::to_error_string());
         }
 
         static inline RpcStatus ok() noexcept {

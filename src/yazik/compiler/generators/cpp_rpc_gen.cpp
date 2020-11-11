@@ -108,7 +108,7 @@ namespace yazik::compiler {
                                 w.w("virtual ::yazik::rpc::{}<ResponseTag> operator ()", resp_wr)
                                     .braced_detail([&]{
                                         w.wl("{}Ctx& ctx,", name);
-                                        w.wl("{}&& request", req_wr);
+                                        w.wl("{} request", req_wr);
                                     }, false, "(",")")
                                     .w(" ")
                                     .braced([&]{
@@ -215,6 +215,8 @@ namespace yazik::compiler {
                     std::string name = camel_case(base_name);
                     std::string c_name = snake_case(base_name);
                     std::string input = do_sformat("{}EntityRef", f.type_name(method->input_type()));
+                    if (method->client_streaming())
+                         input = do_sformat("::yazik::rpc::RpcChannel<{}>", input);
 
                     std::string input_tname = f.type_name(method->input_type());
                     std::string output_tname = f.type_name(method->output_type());
@@ -273,22 +275,6 @@ namespace yazik::compiler {
                                                 w.wl("cq,");
                                                 w.wl("stepper.tag()");
                                             }, true, "(", ");");
-
-                                        w.wl("request_t request_msg;");
-                                        w.wl("auto request_wrap = {}PbSpec::wrap(request_msg);", input_tname);
-                                        w.w("auto request = [&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
-                                            .braced_detail([&]{
-                                                w.w("for (;;) ")
-                                                    .braced([&] {
-                                                        w.wl("reader.Read(&request_msg, stepper.tag());");
-                                                        w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
-                                                            .braced([&] {
-                                                                w.wl("break;");
-                                                            });
-                                                        w.wl("co_yield request_wrap;");
-                                                        w.wl("request_msg = request_t{{}};");
-                                                    });
-                                            }, false).wl("();");
                                     } else {
                                         w.wl("request_t request_pb;");
                                         w.wl("auto request = {}PbSpec::wrap(request_pb);", input_tname);
@@ -319,6 +305,22 @@ namespace yazik::compiler {
                                                     w.wl("tag");
                                                 }, true, "(", ")");
                                         });
+                                    if (method->client_streaming()) {
+                                        w.w("auto request = [&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
+                                            .braced_detail([&]{
+                                                w.w("for (;;) ")
+                                                    .braced([&] {
+                                                        w.wl("request_t request_msg{{}};");
+                                                        w.wl("reader.Read(&request_msg, stepper.tag());");
+                                                        w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
+                                                            .braced([&] {
+                                                                w.wl("break;");
+                                                            });
+                                                        w.wl("co_yield {}PbSpec::wrap(request_msg);", input_tname);
+                                                    });
+                                            }, false).wl("();");
+                                    }
+
                                     w.l();
                                     w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_yaz_t>)")
                                         .braced_detail([&]{
@@ -326,9 +328,34 @@ namespace yazik::compiler {
                                         }, false);
                                     w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_yaz_t>)")
                                         .braced([&]{
-                                            w.wl("co_await unit.identify(ctx, request).wrapped();");
+                                            w.wl("auto id_res = co_await unit.identify(ctx, request).wrapped();");
+                                            w.w("if (!id_res)")
+                                                .braced([&] {
+                                                    w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")
+                                                        .braced([&]{
+                                                            w.wl("unit.on_finish(ctx, id_res.error());");
+                                                        });
+                                                    if (method->server_streaming()) {
+                                                        w.w("writer.Finish")
+                                                            .braced_detail([&]{
+                                                                w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(id_res.error()),");
+                                                                w.wl("stepper.tag()");
+                                                            }, true, "(", ");");
+                                                    } else if (method->client_streaming()) {
+                                                        w.w("reader.FinishWithError")
+                                                            .braced_detail([&] {
+                                                                w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(id_res.error()),");
+                                                                w.wl("stepper.tag()");
+                                                            }, true, "(", ");");
+                                                    } else {
+                                                        w.w("responder.FinishWithError")
+                                                            .braced_detail([&] {
+                                                                w.wl("::yazik::rpc::grpc::grpc_from_rpc_status(id_res.error()),");
+                                                                w.wl("stepper.tag()");
+                                                            }, true, "(", ");");
+                                                    }
+                                                });
                                         });
-                                    w.l();
                                     w.l();
                                     w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, context_t>)")
                                         .braced([&]{
