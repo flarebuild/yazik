@@ -100,6 +100,11 @@ namespace yazik::detail {
         }
     };
 
+    template <typename Error>
+    concept c_has_to_error_string = requires (Error e) {
+        { e.to_error_string() } -> concepts::c_just<string>;
+    };
+
     template <typename Error, typename UError>
     struct ErrorMapper {
         static inline UError map(const Error& e) noexcept {
@@ -112,7 +117,7 @@ namespace yazik::detail {
                 return std::forward<Error>(e);
             else if constexpr (std::is_constructible_v<UError, Error>)
                 return UError { std::forward<Error>(e) };
-            else if constexpr (std::is_same_v<UError, string>)
+            else if constexpr (std::is_same_v<UError, string> && c_has_to_error_string<Error>)
                 return e.to_error_string();
             else if constexpr (std::is_same_v<Error, string>)
                 return UError{
