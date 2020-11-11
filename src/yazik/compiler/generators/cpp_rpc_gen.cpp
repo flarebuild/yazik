@@ -322,13 +322,21 @@ namespace yazik::compiler {
                                     }
 
                                     w.l();
-                                    w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_yaz_t>)")
+                                    w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_plain<Unit, context_t, request_yaz_t>) ")
                                         .braced_detail([&]{
                                             w.wl("unit.identify(ctx, request);");
                                         }, false);
-                                    w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_yaz_t>)")
+                                    w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_result<Unit, context_t, request_yaz_t>) ")
                                         .braced([&]{
-                                            w.wl("auto id_res = co_await unit.identify(ctx, request).wrapped();");
+                                            w.wl("::yazik::rpc::RpcResult<> id_res;");
+                                            w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_yaz_t>)")
+                                                .braced_detail([&] {
+                                                    w.wl("id_res = co_await unit.identify(ctx, request).wrapped();");
+                                                }, false);
+                                            w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_yaz_t>)")
+                                                .braced([&] {
+                                                    w.wl("id_res = unit.identify(ctx, request);");
+                                                });
                                             w.w("if (!id_res)")
                                                 .braced([&] {
                                                     w.w("if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, context_t>)")

@@ -13,6 +13,8 @@ namespace yazik::rpc::grpc {
             return ::grpc::Status { ::grpc::StatusCode::OK, sts.to_error_string().toStdString() };
         case RpcStatus::Status::Cancelled:
             return ::grpc::Status { ::grpc::StatusCode::CANCELLED, sts.to_error_string().toStdString() };
+        case RpcStatus::Status::AlreadyExist:
+            return ::grpc::Status { ::grpc::StatusCode::ALREADY_EXISTS, sts.to_error_string().toStdString() };
         case RpcStatus::Status::InvalidArgument:
             return ::grpc::Status { ::grpc::StatusCode::INVALID_ARGUMENT, sts.to_error_string().toStdString() };
         case RpcStatus::Status::NotFound:
@@ -44,6 +46,8 @@ namespace yazik::rpc::grpc {
             return RpcStatus{ RpcStatusEnum::Cancelled, sts.error_message() };
         case ::grpc::StatusCode::INVALID_ARGUMENT:
             return RpcStatus{ RpcStatusEnum::InvalidArgument, sts.error_message() };
+        case ::grpc::StatusCode::ALREADY_EXISTS:
+            return RpcStatus{ RpcStatusEnum::AlreadyExist, sts.error_message() };
         case ::grpc::StatusCode::NOT_FOUND:
             return RpcStatus{ RpcStatusEnum::NotFound, sts.error_message() };
         case ::grpc::StatusCode::UNAUTHENTICATED:

@@ -35,36 +35,27 @@ namespace yazik::compiler::rpc_support {
         fn.on_finish(ctx, rpc::RpcStatus::cancelled());
     };
 
-    template <
-        typename Fn,
-        typename Ctx,
-        typename Req
-    > concept c_identifiable_sync = requires(
-        Fn fn,
-        Ctx& ctx,
-        Req& req
-    ) {
+    template <typename Fn, typename Ctx, typename Req>
+    concept c_identifiable_plain = requires(Fn fn, Ctx& ctx, Req& req) {
         { fn.identify(ctx, req) } -> concepts::c_same_as<void>;
     };
 
-    template <
-        typename Fn,
-        typename Ctx,
-        typename Req
-    > concept c_identifiable_async = requires(
-        Fn fn,
-        Ctx& ctx,
-        Req& req
-    ) {
+    template <typename Fn, typename Ctx, typename Req>
+    concept c_identifiable_async = requires(Fn fn, Ctx& ctx,Req& req) {
         { fn.identify(ctx, req) } -> concepts::c_same_as<rpc::RpcTask<>>;
     };
 
-    template <
-        typename Fn,
-        typename Ctx,
-        typename Req
-    > concept c_identifiable = requires(Fn fn) {
+    template <typename Fn, typename Ctx, typename Req>
+    concept c_identifiable_sync = requires(Fn fn, Ctx& ctx,Req& req) {
+        { fn.identify(ctx, req) } -> concepts::c_same_as<rpc::RpcResult<>>;
+    };
+
+    template <typename Fn, typename Ctx, typename Req>
+    concept c_identifiable_result = c_identifiable_sync<Fn, Ctx, Req> || c_identifiable_async<Fn, Ctx, Req>;
+
+    template <typename Fn, typename Ctx, typename Req>
+    concept c_identifiable = requires(Fn fn) {
         { fn.identity() } -> concepts::c_just<string_view>;
-    } && (c_identifiable_sync<Fn, Ctx, Req> || c_identifiable_async<Fn, Ctx, Req>);
+    } && (c_identifiable_plain<Fn, Ctx, Req> || c_identifiable_result<Fn, Ctx, Req>);
 
 } // end of ::yazik::compiler::rpc_support namespace

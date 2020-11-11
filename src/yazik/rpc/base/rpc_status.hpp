@@ -11,6 +11,7 @@ namespace yazik::rpc {
     enum class RpcStatusEnum {
         Ok,
         Cancelled,
+        AlreadyExist,
         InvalidArgument,
         NotFound,
         NonAuthorized,
@@ -27,6 +28,7 @@ namespace yazik::rpc {
         switch (sts) {
         case RpcStatusEnum::Ok: return "ok";
         case RpcStatusEnum::Cancelled: return "cancelled";
+        case RpcStatusEnum::AlreadyExist: return "already exist";
         case RpcStatusEnum::InvalidArgument: return "invalid argument";
         case RpcStatusEnum::NotFound: return "not found";
         case RpcStatusEnum::NonAuthorized: return "non authorized";
@@ -59,6 +61,10 @@ namespace yazik::rpc {
 
         static inline RpcStatus cancelled() noexcept {
             return { Status::Cancelled, "Cancelled" };
+        }
+
+        static inline RpcStatus already_exist(string error = "") noexcept {
+            return { Status::AlreadyExist, error };
         }
 
         static inline RpcStatus invalid_argument(string error) noexcept {
