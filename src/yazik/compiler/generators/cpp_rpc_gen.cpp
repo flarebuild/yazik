@@ -306,19 +306,14 @@ namespace yazik::compiler {
                                                 }, true, "(", ")");
                                         });
                                     if (method->client_streaming()) {
-                                        w.w("auto request = [&]() -> ::yazik::rpc::RpcChannel<{}EntityRef> ", input_tname)
-                                            .braced_detail([&]{
-                                                w.w("for (;;) ")
-                                                    .braced([&] {
-                                                        w.wl("request_t request_msg{{}};");
-                                                        w.wl("reader.Read(&request_msg, stepper.tag());");
-                                                        w.w("if (!(co_await stepper.step(YAZ_LOCATION_STR))) ")
-                                                            .braced([&] {
-                                                                w.wl("break;");
-                                                            });
-                                                        w.wl("co_yield {}PbSpec::wrap(request_msg);", input_tname);
-                                                    });
-                                            }, false).wl("();");
+                                        w.w("auto request = ::yazik::compiler::grpc_support::create_request_stream")
+                                            .braced_detail([&] {
+                                                w.wl("{}EntityRef,", input_tname);
+                                                w.wl("{}PbSpec,", input_tname);
+                                                w.wl("request_t,");
+                                                w.wl("response_t");
+                                            }, false, "<", ">")
+                                            .wl("(stepper, reader $$yaz_debug(, YAZ_LOCATION_STR));");
                                     }
 
                                     w.l();
