@@ -6,21 +6,21 @@
 #include <yazik/utility/lambda_continuation.hpp>
 #include <yazik/utility/utility_defs.hpp>
 
-#ifndef NDEBUG
-void grpc_cq_internal_ref(grpc_completion_queue* cc, const char* reason,
-                          const char* file, int line);
-void grpc_cq_internal_unref(grpc_completion_queue* cc, const char* reason,
-                            const char* file, int line);
-#define GRPC_CQ_INTERNAL_REF(cc, reason) \
-  grpc_cq_internal_ref(cc, reason, __FILE__, __LINE__)
-#define GRPC_CQ_INTERNAL_UNREF(cc, reason) \
-  grpc_cq_internal_unref(cc, reason, __FILE__, __LINE__)
-#else
-void grpc_cq_internal_ref(grpc_completion_queue* cc);
-void grpc_cq_internal_unref(grpc_completion_queue* cc);
-#define GRPC_CQ_INTERNAL_REF(cc, reason) grpc_cq_internal_ref(cc)
-#define GRPC_CQ_INTERNAL_UNREF(cc, reason) grpc_cq_internal_unref(cc)
-#endif
+//#ifndef NDEBUG
+//void grpc_cq_internal_ref(grpc_completion_queue* cc, const char* reason,
+//                          const char* file, int line);
+//void grpc_cq_internal_unref(grpc_completion_queue* cc, const char* reason,
+//                            const char* file, int line);
+//#define GRPC_CQ_INTERNAL_REF(cc, reason) \
+//  grpc_cq_internal_ref(cc, reason, __FILE__, __LINE__)
+//#define GRPC_CQ_INTERNAL_UNREF(cc, reason) \
+//  grpc_cq_internal_unref(cc, reason, __FILE__, __LINE__)
+//#else
+//void grpc_cq_internal_ref(grpc_completion_queue* cc);
+//void grpc_cq_internal_unref(grpc_completion_queue* cc);
+//#define GRPC_CQ_INTERNAL_REF(cc, reason) grpc_cq_internal_ref(cc)
+//#define GRPC_CQ_INTERNAL_UNREF(cc, reason) grpc_cq_internal_unref(cc)
+//#endif
 
 namespace {
 
@@ -160,7 +160,7 @@ namespace yazik::rpc::grpc {
     )
     : _queue { std::move(queue) }
     {
-        GRPC_CQ_INTERNAL_REF(_queue->cq(), "crash guard");
+//        GRPC_CQ_INTERNAL_REF(_queue->cq(), "crash guard");
     }
 
     GrpcQueueScheduler::~GrpcQueueScheduler() {
