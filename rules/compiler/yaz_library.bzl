@@ -92,6 +92,22 @@ _grpc_cc_gen = rule(
     implementation = _grpc_cc_gen_impl,
 )
 
+def _filter_by_ext_impl(ctx):
+    result = []
+    for file in ctx.attr.source[DefaultInfo].files.to_list():
+        if file.extension in ctx.attr.exts:
+            result.append(file)
+
+    return DefaultInfo(files = depset(result))
+
+_filter_by_ext = rule(
+    attrs = {
+        "source": attr.label(),
+        "exts": attr.string_list(),
+    },
+    implementation = _filter_by_ext_impl,
+)
+
 def _remove_cc(name):
     if not name.find("_cc_"):
         fail("%s name not contains _cc_")
@@ -106,7 +122,13 @@ def yaz_library(name, srcs, deps, pb_only, proto_only, visibility, tags):
         proto_only = proto_only,
         pb_only = pb_only,
     )
-    gen_srcs_label_rel = ":%s" % gen_srcs_label
+
+    _filter_by_ext(
+        name = gen_srcs_label + "_hdrs",
+        source = ":" + gen_srcs_label,
+        exts = [ "h", "hh", "hpp" ],
+    )
+
 
     if proto_only:
         if pb_only:
@@ -121,8 +143,8 @@ def yaz_library(name, srcs, deps, pb_only, proto_only, visibility, tags):
 
     native.cc_library(
         name = name,
-        srcs = [ gen_srcs_label_rel ],
-        hdrs = [ gen_srcs_label_rel ],
+        srcs = [ ":" + gen_srcs_label ],
+        hdrs = [ ":" + gen_srcs_label + "_hdrs" ],
         deps = deps + runtime_deps,
         includes = [ "_virtual_imports/%s_proto/" % name ],
         tags = tags,
