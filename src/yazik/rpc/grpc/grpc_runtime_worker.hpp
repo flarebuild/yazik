@@ -47,9 +47,9 @@ namespace yazik::rpc::grpc {
             auto handle = injector.template create<Handle>();
             using handle_t = decltype(injector.template create<Handle>());
             auto* service = _runtime->service<typename handle_t::service_t>();
-            _units.push_back([this, _l_move(handle), service]{
+            _units.push_back([this, unit = std::move(handle.unit), service]{
                 handle_t::spawn(
-                    std::move(handle.unit),
+                    std::move(unit),
                     service,
                     _scheduler
                 );

@@ -327,6 +327,7 @@ namespace yazik::compiler {
                                             w.w("if constexpr (::yazik::compiler::rpc_support::c_identifiable_async<Unit, context_t, request_yaz_t>)")
                                                 .braced_detail([&] {
                                                     w.wl("id_res = co_await unit.identify(ctx, request).wrapped();");
+                                                    w.wl("co_await scheduler->ensure_on(YAZ_LOCATION_STR);");
                                                 }, false);
                                             w.w(" else if constexpr (::yazik::compiler::rpc_support::c_identifiable_sync<Unit, context_t, request_yaz_t>)")
                                                 .braced([&] {
@@ -470,6 +471,7 @@ namespace yazik::compiler {
                                             .w(" else ")
                                             .braced([&] {
                                                 w.wl("result = co_await unit(ctx, std::move(request)).wrapped();");
+                                                w.wl("co_await scheduler->ensure_on(YAZ_LOCATION_STR);");
                                             });
                                         w.l();
                                         w.w("if (result) ")
