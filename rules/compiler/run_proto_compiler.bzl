@@ -35,6 +35,10 @@ def run_proto_compiler(ctx, proto_info, exts, out_defs, add_args = None, env = N
         arguments = [ spec.args ],
         env = env,
         tools = spec.tools,
+        execution_requirements = {
+            "no-sandbox": "1",
+            "local": "1",
+        },
     )
 
     return outputs

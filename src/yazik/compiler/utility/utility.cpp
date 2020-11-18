@@ -30,7 +30,9 @@ namespace yazik::compiler {
     }
 
     std::string camel_case_upper(const std::string& str) {
-        return ::boost::to_upper_copy<std::string>(str);
+        std::string copy = str;
+        for (auto & c: copy) c = std::toupper(c);
+        return copy;
     }
 
     std::string snake_case(const std::string& str) {
