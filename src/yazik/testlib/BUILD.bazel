@@ -1,0 +1,9 @@
+load("//rules:cc.bzl", "cc")
+
+cc.library(
+    name = "testlib",
+    hdrs = glob([ "*.hpp", ]),
+    testonly = True,
+    deps = [ "@com_github_catchorg_catch//:catch2", ],
+    visibility = ["//visibility:public"],
+)

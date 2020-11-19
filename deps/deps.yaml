@@ -5,3 +5,5 @@
 - com/github/grpc/grpc
 - com/github/ericniebler/range_v3
 - com/github/boost_ext/di
+- com/github/catchorg/catch
+- com/github/chaiscript/chaiscript

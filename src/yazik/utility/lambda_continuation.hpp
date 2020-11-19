@@ -68,32 +68,6 @@ namespace utility {
         Result<void> apply(continuation_t&& continuation);
     };
 
-//	class CoroOnceImpl {
-//        using continuation_t = std::function<void()>;
-//        continuation_t _continuation;
-//        std::experimental::coroutine_handle<> _awaiter;
-//
-//    public:
-//
-//        CoroOnceImpl(continuation_t&& continuation)
-//        : _continuation { std::move(continuation) }
-//        {}
-//
-//        bool await_ready() const noexcept {
-////            bool prev = _once_hit;
-////            _once_hit = true;
-////            return prev;
-//            return false;
-//        }
-//		void await_suspend(std::experimental::coroutine_handle<WithScopePromise> awaiter) noexcept {
-//            if (_continuation) _continuation();
-//            awaiter.resume();
-//		}
-//
-//		void await_resume() const noexcept {}
-//
-//	};
-
     template<typename Impl, typename Fn>
     auto operator <<= (LambdaContinuationMark<Impl>&& impl, Fn fn) {
         using ret_t = decltype(impl.apply(std::move(fn)));
