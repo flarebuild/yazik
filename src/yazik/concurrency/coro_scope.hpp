@@ -2,6 +2,7 @@
 
 #include <stack>
 
+#include <yazik/utility/lambda_continuation.hpp>
 #include <yazik/concurrency/executor.hpp>
 #include <yazik/concurrency/sequence_barrier.hpp>
 #include <yazik/concurrency/task.hpp>
@@ -36,4 +37,24 @@ namespace yazik::concurrency {
         scope.push_deferred(std::forward<Task<void, Error>>(f));
     }
 
+    class CoroDefer {
+        concurrency::executor_ptr_t _ex;
+        using continuation_t = std::function<void()>;
+        continuation_t _fn;
+
+        Future<> defer();
+
+    public:
+
+        CoroDefer(CoroDefer&& other);
+        CoroDefer(concurrency::executor_ptr_t ex);
+        ~CoroDefer();
+
+        CoroDefer apply(continuation_t&& continuation);
+    };
+
 } // end of ::yazik::concurrency namespace
+
+#define yaz_coro_defer(ex) \
+    auto YAZ_CONCAT(__CORO_DEFER_, __LINE__ ) \
+        = ::yazik::utility::LambdaContinuationMark<::yazik::concurrency::CoroDefer>{ex} <<=

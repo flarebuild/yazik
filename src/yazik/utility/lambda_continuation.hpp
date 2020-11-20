@@ -8,8 +8,7 @@
 #include <yazik/utility/macro.hpp>
 #include <yazik/utility/result.hpp>
 
-namespace yazik {
-namespace utility {
+namespace yazik::utility {
     template <typename Impl>
     struct LambdaContinuationMark: Impl {
         using Impl::Impl;
@@ -74,10 +73,9 @@ namespace utility {
         if constexpr (std::is_void_v<ret_t>)
             return impl.apply(std::move(fn));
         else
-            return std::forward<ret_t>(impl.apply(std::move(fn)));
+            return impl.apply(std::move(fn));
     }
 } // end of ::yazik::utility namespace
-} // end of ::yazik namespace
 
 #define yaz_defer \
     auto YAZ_CONCAT(__DEFER_, __LINE__ ) \

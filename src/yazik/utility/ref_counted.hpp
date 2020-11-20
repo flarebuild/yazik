@@ -4,8 +4,7 @@
 #include <cstddef>
 #include "logging.hpp"
 
-namespace yazik {
-namespace utility {
+namespace yazik::utility {
 
     /// Base class for reference counted objects with an atomic reference count.
     /// Serves the requirements of {@link intrusive_ptr}.
@@ -56,14 +55,12 @@ namespace utility {
 
 } // end of ::yazik::utility namespace
 
-    /// @relates ref_counted
-    inline void intrusive_ptr_add_ref(const utility::ref_counted* p) {
-        p->ref();
-    }
+/// @relates ref_counted
+inline void intrusive_ptr_add_ref(const ::yazik::utility::ref_counted* p) {
+    p->ref();
+}
 
-    /// @relates ref_counted
-    inline void intrusive_ptr_release(const utility::ref_counted* p) {
-        p->deref();
-    }
-
-} // end of ::yazik namespace
+/// @relates ref_counted
+inline void intrusive_ptr_release(const ::yazik::utility::ref_counted* p) {
+    p->deref();
+}

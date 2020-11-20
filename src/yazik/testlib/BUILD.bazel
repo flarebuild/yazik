@@ -4,6 +4,9 @@ cc.library(
     name = "testlib",
     hdrs = glob([ "*.hpp", ]),
     testonly = True,
-    deps = [ "@com_github_catchorg_catch//:catch2", ],
+    deps = [
+        "@com_github_catchorg_catch//:catch2",
+        "//src/yazik/concurrency",
+    ],
     visibility = ["//visibility:public"],
 )

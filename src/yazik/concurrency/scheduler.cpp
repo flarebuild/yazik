@@ -10,6 +10,7 @@ namespace yazik::concurrency {
     protected:
         ::boost::asio::io_service _io;
         std::shared_ptr<std::atomic_bool> _need_cancel;
+        std::optional<uint64_t> _thread_id;
     public:
 
         Disposer dispatch_impl(
@@ -91,21 +92,33 @@ namespace yazik::concurrency {
             control->timer.async_wait(control->tick);
         }
 
+        void mark_thread() noexcept override {
+            _thread_id = thread_idx();
+        }
+
         Future<> run_until_done(Future<> work) override {
+            mark_thread();
+            _need_cancel = std::make_shared<std::atomic_bool>(false);
             auto io_work = ::boost::asio::io_service::work { _io };
             do {
                 _io.run_for(std::chrono::milliseconds{100});
             } while (!work.is_ready());
             return work;
         }
+
+        const std::optional<uint64_t>& thread_id() const override {
+            return _thread_id;
+        }
+
+        bool is_on() noexcept override {
+            return thread_id() == thread_idx();
+        }
     };
 
     class AsioThreadScheduler
     : public AsioScheduler
     , public ThreadScheduler {
-        std::shared_ptr<std::atomic_bool> _need_cancel;
         std::shared_ptr<std::thread> _thread;
-        std::optional<uint64_t> _thread_id;
 
         void thread_loop() {
             _need_cancel = std::make_shared<std::atomic_bool>(false);
@@ -114,6 +127,7 @@ namespace yazik::concurrency {
             do {
                 _io.run_for(std::chrono::milliseconds{100});
             } while (!_need_cancel->load(std::memory_order_relaxed));
+            $breakpoint_hint
         }
 
     public:
@@ -122,26 +136,25 @@ namespace yazik::concurrency {
             wait();
         }
 
-        const std::optional<uint64_t>& thread_id() const override {
-            return _thread_id;
-        }
-
         Result<void> start() override {
             if (_thread && _thread->joinable())
                 return yaz_fail<string>("already started");
-            _need_cancel = std::make_shared<std::atomic_bool>(false);
             _thread = std::make_shared<std::thread>(std::bind(&AsioThreadScheduler::thread_loop, this));
             return yaz_ok();
         }
 
         void stop() override {
-            if (_need_cancel) _need_cancel->store(true);
+            if (_need_cancel)
+                _need_cancel->store(true, std::memory_order_release);
+            $breakpoint_hint
         }
 
         void wait() override {
-            if (_thread && _thread->joinable()) _thread->join();
+            if (thread_id() == thread_idx())
+                return;
+            if (_thread && _thread->joinable())
+                _thread->join();
             _thread.reset();
-            _need_cancel.reset();
             _thread_id = {};
         }
     };

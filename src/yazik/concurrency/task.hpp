@@ -429,4 +429,7 @@ namespace promises {
     }
 } // end of promises namespace
 
+    template <typename T, typename Error = string>
+    using TaskIPtr = Task<intrusive_ptr<T>, Error>;
+
 } // end of ::yazik namespace

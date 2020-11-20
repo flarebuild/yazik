@@ -78,14 +78,15 @@ namespace yazik::concurrency {
             void await_resume() const noexcept;
         };
 
+        virtual bool is_on() noexcept;
         virtual OnAwaitable on($yaz_debug(const char* descr)) = 0;
-        virtual OnAwaitable ensure_on($yaz_debug(const char* descr));
+        OnAwaitable ensure_on($yaz_debug(const char* descr));
         virtual OnAwaitable on_deferred($yaz_debug(const char* descr)) = 0;
     };
 
     struct Executor
     : virtual EnsureOnExecutor
-    , utility::ref_counted {
+    , virtual utility::ref_counted {
         virtual Disposer dispatch_impl(
             unique_function<void(CancellationToken&&)>&& clbk
             $yaz_debug(, const char* descr)
@@ -205,14 +206,19 @@ namespace yazik::concurrency {
         void execute(const std::shared_ptr<std::atomic_bool>& is_cancelled);
     };
 
-    struct ThreadExecutor
-    : virtual EnsureOnExecutor {
+    struct ThreadIdHolder: virtual EnsureOnExecutor {
         virtual const std::optional<uint64_t>& thread_id() const = 0;
+        bool is_on() noexcept override;
+    };
+
+    struct ThreadExecutor
+    : virtual ThreadIdHolder
+    , virtual utility::ref_counted {
+
         virtual Result<void> start() = 0;
         virtual void stop() = 0;
         virtual void wait() = 0;
-
-        OnAwaitable ensure_on($yaz_debug(const char* descr)) override;
+        void stop_joined();
     };
 
     class SingleThreadExecutor

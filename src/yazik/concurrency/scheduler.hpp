@@ -58,16 +58,21 @@ namespace yazik::concurrency {
 
     class ThreadScheduler
     : public virtual Scheduler
-    , public concurrency::ThreadExecutor
+    , public virtual concurrency::ThreadExecutor
     {};
 
     class WorkScheduler
-    : public virtual Scheduler {
+    : public virtual Scheduler
+    , public virtual ThreadIdHolder {
     public:
+        virtual void mark_thread() noexcept = 0;
         virtual Future<> run_until_done(Future<> work) = 0;
     };
 
     intrusive_ptr<WorkScheduler> create_asio_scheduler();
     intrusive_ptr<ThreadScheduler> create_asio_thread_scheduler();
+
+    using work_scheduler_ptr_t = intrusive_ptr<WorkScheduler>;
+    using thread_scheduler_ptr_t = intrusive_ptr<ThreadScheduler>;
 
 } // end of ::yazik::concurrency namespace

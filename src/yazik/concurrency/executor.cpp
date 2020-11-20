@@ -111,7 +111,13 @@ namespace concurrency {
 
     void EnsureOnExecutor::OnAwaitable::await_resume() const noexcept {}
 
+    bool EnsureOnExecutor::is_on() noexcept {
+        return false;
+    }
+
     auto EnsureOnExecutor::ensure_on($yaz_debug(const char* descr)) -> OnAwaitable {
+        if (is_on())
+            return {};
         return on($yaz_debug(descr));
     }
 
@@ -123,10 +129,14 @@ namespace concurrency {
         return {this, true $yaz_debug(, descr)};
     }
 
-    auto ThreadExecutor::ensure_on($yaz_debug(const char* descr)) -> OnAwaitable {
-        if(thread_id() == thread_idx())
-            return {};
-        return on($yaz_debug(descr));
+    bool ThreadIdHolder::is_on() noexcept {
+        return thread_id() == thread_idx();
+    }
+
+    void ThreadExecutor::stop_joined() {
+        stop();
+        wait();
+        $breakpoint_hint
     }
 
     bool SingleThreadExecutor::poll_all_dispatched() {
