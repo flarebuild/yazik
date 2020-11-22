@@ -19,27 +19,30 @@ namespace yazik::concurrency {
 
     uint64_t thread_idx();
 
-    struct ICancellationTokenImpl {
+    struct ICancellationTokenImpl: utility::ref_counted {
         virtual bool is_cancelled() const noexcept = 0;
-        virtual ~ICancellationTokenImpl() {};
+        virtual void cancel() noexcept = 0;
     };
+
+    using cancel_token_ptr = intrusive_ptr<ICancellationTokenImpl>;
 
     class CancellationTokenComposite;
     class CancellationToken {
-        std::unique_ptr<ICancellationTokenImpl> _impl;
+        cancel_token_ptr _impl;
         friend class CancellationTokenComposite;
     public:
         CancellationToken() = default;
-        CancellationToken(std::unique_ptr<ICancellationTokenImpl>&& impl);
+        CancellationToken(cancel_token_ptr impl);
         bool is_cancelled() const noexcept;
     };
 
     class CancellationTokenAtomic
     : public ICancellationTokenImpl {
-        std::shared_ptr<std::atomic_bool> _is_cancelled;
+        std::atomic_bool _is_cancelled;
     public:
-        CancellationTokenAtomic(std::shared_ptr<std::atomic_bool> is_cancelled);
+        CancellationTokenAtomic();
         bool is_cancelled() const noexcept override;
+        void cancel() noexcept override;
     };
 
     class CancellationTokenComposite
@@ -48,11 +51,11 @@ namespace yazik::concurrency {
     public:
         CancellationTokenComposite(vector<CancellationToken>&& tokens);
         bool is_cancelled() const noexcept override;
+        void cancel() noexcept override;
     };
 
     class Disposer {
-        std::shared_ptr<std::atomic_bool> _is_disposed
-            = std::make_shared<std::atomic_bool>(false);
+        cancel_token_ptr _is_disposed = new CancellationTokenAtomic;
     public:
         void dispose();
         CancellationToken cancellation_token();
@@ -203,7 +206,7 @@ namespace yazik::concurrency {
         DispatchAction() = default;
         static DispatchAction plain(PlainAction&& action);
         static ManagedDispatch managed(ManagedAction&& action);
-        void execute(const std::shared_ptr<std::atomic_bool>& is_cancelled);
+        void execute(const cancel_token_ptr& is_cancelled);
     };
 
     struct ThreadIdHolder: virtual EnsureOnExecutor {
@@ -224,7 +227,7 @@ namespace yazik::concurrency {
     class SingleThreadExecutor
     : public Executor
     , public ThreadExecutor {
-        std::shared_ptr<std::atomic_bool> _need_cancel;
+        cancel_token_ptr _need_cancel;
         std::shared_ptr<std::thread> _thread;
         std::optional<uint64_t> _thread_id;
 

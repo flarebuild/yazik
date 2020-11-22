@@ -19,6 +19,23 @@ namespace yazik::concurrency {
             std::chrono::nanoseconds period
         ) = 0;
 
+        template<typename Fn>
+        void schedule_periodic(
+            Fn&& clbk,
+            std::chrono::nanoseconds period,
+            cancel_token_ptr token
+        ) {
+            schedule_periodic_impl(
+                [_l_move(clbk),token] {
+                    if (token->is_cancelled())
+                        return false;
+                    clbk();
+                    return true;
+                },
+                period
+            );
+        }
+
         class DelayedAwaitable {
             Scheduler* _scheduler = nullptr;
             const std::chrono::nanoseconds _delay;

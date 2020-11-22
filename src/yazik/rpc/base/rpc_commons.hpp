@@ -18,6 +18,9 @@ namespace yazik::rpc {
     template<typename T = void>
     using RpcTask = Task<T, RpcStatus>;
 
+     template<typename T>
+    using RpcTaskIPtr = TaskIPtr<T, RpcStatus>;
+
     template<typename T>
     using RpcChannel = Channel<T, RpcStatus>;
 

@@ -12,7 +12,7 @@ namespace yazik::rpc::grpc {
     class IGrpcQueueAction {
         bool _is_ok = false;
     public:
-        virtual void proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) = 0;
+        virtual void proceed(const concurrency::cancel_token_ptr& is_cancelled) = 0;
         void set_is_ok(bool ok);
         bool is_ok() const;
         void* self_tagged();
@@ -25,7 +25,7 @@ namespace yazik::rpc::grpc {
         ::grpc::Alarm _alarm;
     public:
         GrpcQueueAction(concurrency::DispatchAction&& action);
-        void proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) override;
+        void proceed(const concurrency::cancel_token_ptr& is_cancelled) override;
         void dispatch(::grpc::CompletionQueue* queue);
     };
 
@@ -35,7 +35,7 @@ namespace yazik::rpc::grpc {
         ::grpc::Alarm _alarm;
     public:
         GrpcDelayedAction(unique_function<void()>&& clbk);
-        void proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) override;
+        void proceed(const concurrency::cancel_token_ptr& is_cancelled) override;
         void dispatch(::grpc::CompletionQueue* queue, std::chrono::nanoseconds delay);
     };
 
@@ -51,7 +51,7 @@ namespace yazik::rpc::grpc {
             std::chrono::nanoseconds period,
             ::grpc::CompletionQueue* queue
         );
-        void proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) override;
+        void proceed(const concurrency::cancel_token_ptr& is_cancelled) override;
         void dispatch();
     };
 
@@ -62,7 +62,7 @@ namespace yazik::rpc::grpc {
         mutable GrpcQueueScheduler* _scheduler = nullptr;
         mutable std::experimental::coroutine_handle<> _handle;
 
-        void proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) override;
+        void proceed(const concurrency::cancel_token_ptr& is_cancelled) override;
 
     $yaz_debug(
         const char* _descr = nullptr;
@@ -104,7 +104,7 @@ namespace yazik::rpc::grpc {
         std::unique_ptr<::grpc::CompletionQueue> _queue;
         concurrency::Stack<concurrency::unique_function<void()>> _deferred_stack;
     protected:
-        std::shared_ptr<std::atomic_bool> _need_cancel = std::make_shared<std::atomic_bool>(false);
+        concurrency::cancel_token_ptr _need_cancel = new concurrency::CancellationTokenAtomic;
 
 
         Result<bool> check_status(::grpc::CompletionQueue::NextStatus sts);
@@ -143,7 +143,7 @@ namespace yazik::rpc::grpc {
 
         GrpcQueueTag::GrpcQueueTagOp wait_for_tag(GrpcQueueTag& tag);
         bool check_need_stop();
-        const std::shared_ptr<std::atomic_bool>& need_cancel();
+        const concurrency::cancel_token_ptr& need_cancel();
 
         ::grpc::CompletionQueue* queue();
         void stop_impl();

@@ -10,7 +10,7 @@ namespace concurrency {
         return ::folly::getCurrentThreadID();
     }
 
-    CancellationToken::CancellationToken(std::unique_ptr<ICancellationTokenImpl>&& impl)
+    CancellationToken::CancellationToken(cancel_token_ptr impl)
     : _impl { std::move(impl) }
     {}
 
@@ -18,14 +18,16 @@ namespace concurrency {
         return _impl && _impl->is_cancelled();
     }
 
-    CancellationTokenAtomic::CancellationTokenAtomic(
-        std::shared_ptr<std::atomic_bool> is_cancelled
-    )
-    : _is_cancelled { std::move(is_cancelled) }
+    CancellationTokenAtomic::CancellationTokenAtomic()
+    : _is_cancelled { false }
     {}
 
     bool CancellationTokenAtomic::is_cancelled() const noexcept {
-        return _is_cancelled->load();
+        return _is_cancelled.load(std::memory_order_relaxed);
+    }
+
+    void CancellationTokenAtomic::cancel() noexcept {
+        _is_cancelled.store(true);
     }
 
     CancellationTokenComposite::CancellationTokenComposite(vector<CancellationToken>&& tokens)
@@ -39,12 +41,17 @@ namespace concurrency {
         return false;
     }
 
+    void CancellationTokenComposite::cancel() noexcept {
+        for (auto& token: _tokens)
+            token._impl->cancel();
+    }
+
     void Disposer::dispose() {
-        _is_disposed->store(true);
+        _is_disposed->cancel();
     }
 
     CancellationToken Disposer::cancellation_token() {
-        return {std::make_unique<CancellationTokenAtomic>(_is_disposed)};
+        return {_is_disposed};
     }
 
     DispatchAction::DispatchAction(ActionVariant&& action)
@@ -67,7 +74,7 @@ namespace concurrency {
         };
     }
 
-    void DispatchAction::execute(const std::shared_ptr<std::atomic_bool>& is_cancelled) {
+    void DispatchAction::execute(const cancel_token_ptr& is_cancelled) {
         if (std::holds_alternative<PlainAction>(_action)) {
 //            if (!is_cancelled->load(std::memory_order::relaxed))
             std::get<PlainAction>(_action)();
@@ -75,9 +82,9 @@ namespace concurrency {
             auto [action, stored_token] = std::move(std::get<ManagedActionPair>(_action));
             auto tokens = vector<CancellationToken>{};
             if (is_cancelled)
-                tokens.emplace_back(std::make_unique<CancellationTokenAtomic>(is_cancelled));
+                tokens.emplace_back(is_cancelled);
             tokens.emplace_back(std::move(stored_token));
-            action(CancellationToken{std::make_unique<CancellationTokenComposite>(std::move(tokens))});
+            action(CancellationToken{ new CancellationTokenComposite { std::move(tokens) }});
         }
     }
 
@@ -154,7 +161,7 @@ namespace concurrency {
         _thread_id = thread_idx();
         {
             CVWaiter baton{_wait_cv};
-            while (!_need_cancel->load(std::memory_order_relaxed))
+            while (!_need_cancel->is_cancelled())
                 baton.check(poll_all_dispatched());
         }
         while (poll_all_dispatched());
@@ -200,13 +207,13 @@ namespace concurrency {
     Result<void> SingleThreadExecutor::start() {
         if (_thread && _thread->joinable())
             return yaz_fail<string>("already started");
-        _need_cancel = std::make_shared<std::atomic_bool>(false);
+        _need_cancel = new CancellationTokenAtomic;
         _thread = std::make_shared<std::thread>(std::bind(&SingleThreadExecutor::thread_loop, this));
         return yaz_ok();
     }
 
     void SingleThreadExecutor::stop() {
-        if (_need_cancel) _need_cancel->store(true);
+        if (_need_cancel) _need_cancel->cancel();
         _wait_cv.notify_one();
     }
 

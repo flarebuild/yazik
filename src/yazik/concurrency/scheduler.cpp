@@ -9,7 +9,7 @@ namespace yazik::concurrency {
     , protected concurrency::Waiter {
     protected:
         ::boost::asio::io_service _io;
-        std::shared_ptr<std::atomic_bool> _need_cancel;
+        cancel_token_ptr _need_cancel;
         std::optional<uint64_t> _thread_id;
     public:
 
@@ -98,7 +98,7 @@ namespace yazik::concurrency {
 
         Future<> run_until_done(Future<> work) override {
             mark_thread();
-            _need_cancel = std::make_shared<std::atomic_bool>(false);
+            _need_cancel = new CancellationTokenAtomic;
             auto io_work = ::boost::asio::io_service::work { _io };
             do {
                 _io.run_for(std::chrono::milliseconds{100});
@@ -121,12 +121,12 @@ namespace yazik::concurrency {
         std::shared_ptr<std::thread> _thread;
 
         void thread_loop() {
-            _need_cancel = std::make_shared<std::atomic_bool>(false);
+            _need_cancel = new CancellationTokenAtomic;
             _thread_id = thread_idx();
             auto io_work = ::boost::asio::io_service::work { _io };
             do {
                 _io.run_for(std::chrono::milliseconds{100});
-            } while (!_need_cancel->load(std::memory_order_relaxed));
+            } while (!_need_cancel->is_cancelled());
             $breakpoint_hint
         }
 
@@ -145,7 +145,7 @@ namespace yazik::concurrency {
 
         void stop() override {
             if (_need_cancel)
-                _need_cancel->store(true, std::memory_order_release);
+                _need_cancel->cancel();
             $breakpoint_hint
         }
 

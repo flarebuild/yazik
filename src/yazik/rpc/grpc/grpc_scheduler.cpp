@@ -63,7 +63,7 @@ namespace yazik::rpc::grpc {
     : _action { std::forward<concurrency::DispatchAction>(action) }
     {}
 
-    void GrpcQueueAction::proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) {
+    void GrpcQueueAction::proceed(const concurrency::cancel_token_ptr& is_cancelled) {
         _action.execute(is_cancelled);
         delete this;
     }
@@ -77,7 +77,7 @@ namespace yazik::rpc::grpc {
     : _clbk { std::forward<unique_function<void()>>(clbk) }
     {}
 
-    void GrpcDelayedAction::proceed(const std::shared_ptr<std::atomic_bool>&) {
+    void GrpcDelayedAction::proceed(const concurrency::cancel_token_ptr&) {
         _clbk();
         delete this;
     }
@@ -100,8 +100,8 @@ namespace yazik::rpc::grpc {
     , _queue { queue }
     {}
 
-    void GrpcScheduledAction::proceed(const std::shared_ptr<std::atomic_bool>& is_cancelled) {
-        if (is_cancelled->load(std::memory_order_relaxed) || !_clbk())
+    void GrpcScheduledAction::proceed(const concurrency::cancel_token_ptr& is_cancelled) {
+        if (is_cancelled->is_cancelled() || !_clbk())
             delete this;
         else
             dispatch();
@@ -115,7 +115,7 @@ namespace yazik::rpc::grpc {
         _alarm.Set(_queue, deadline, self_tagged());
     }
 
-    void GrpcQueueTag::proceed(const std::shared_ptr<std::atomic_bool>& /*is_cancelled*/) {
+    void GrpcQueueTag::proceed(const concurrency::cancel_token_ptr& /*is_cancelled*/) {
         _scheduler = nullptr;
 
         if (_handle) {
@@ -175,7 +175,7 @@ namespace yazik::rpc::grpc {
         _deferred_stack.sweep([](auto&& fn) { fn(); });
     }
 
-    const std::shared_ptr<std::atomic_bool>& GrpcQueueScheduler::need_cancel() {
+    const concurrency::cancel_token_ptr& GrpcQueueScheduler::need_cancel() {
         return _need_cancel;
     }
 
@@ -227,7 +227,7 @@ namespace yazik::rpc::grpc {
     }
 
     bool GrpcQueueScheduler::check_need_stop() {
-        return _need_cancel->load(std::memory_order::relaxed);
+        return _need_cancel->is_cancelled();
     }
 
     Result<bool> GrpcQueueScheduler::check_status(::grpc::CompletionQueue::NextStatus sts) {
@@ -281,7 +281,8 @@ namespace yazik::rpc::grpc {
     }
 
     void GrpcQueueScheduler::stop_impl() {
-        if (_need_cancel) _need_cancel->store(true);
+        if (_need_cancel)
+            _need_cancel->cancel();
     }
 
     ::grpc::CompletionQueue* GrpcQueueScheduler::queue() {
@@ -326,7 +327,7 @@ namespace yazik::rpc::grpc {
     Result<void> GrpcQueueThreadScheduler::start() {
         if (_thread && _thread->joinable())
             return yaz_fail("already started");
-        _need_cancel = std::make_shared<std::atomic_bool>(false);
+        _need_cancel = new concurrency::CancellationTokenAtomic;
         _thread = std::make_shared<std::thread>(std::bind(&GrpcQueueThreadScheduler::thread_loop, this));
         return yaz_ok();
     }
