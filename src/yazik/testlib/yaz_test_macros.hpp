@@ -10,6 +10,7 @@
     ::yazik::Result<> ID(); \
     TEST_CASE(__VA_ARGS__) { \
         auto res = ID(); \
+        fflush(stdout); \
         if (!res)   \
             FAIL(res.error()); \
     } \

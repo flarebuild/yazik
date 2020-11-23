@@ -19,6 +19,9 @@ def cc_catch_test(**kwargs):
             "@com_github_catchorg_catch//:catch2_main",
             "@build_flare_yazik//src/yazik/testlib",
         ],
+        defines = [
+            "YAZ_TEST",
+        ],
         copts = kwargs.pop("copts", []) + [ "-std=c++2a" ],
         **kwargs
     )

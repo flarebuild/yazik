@@ -29,3 +29,9 @@
 #   define YAZ_PRE_COMMA_LOCATION_STR , YAZ_LOCATION_STR
 #   define YAZ_DEBUG 1
 #endif
+
+#ifdef YAZ_TEST
+#   define $yaz_test   $yes
+#else
+#   define $yaz_test   $no
+#endif

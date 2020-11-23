@@ -12,6 +12,8 @@
 #include <folly/Try.h>
 #include <folly/json.h>
 
+#include <range/v3/all.hpp>
+
 namespace yazik {
     template <typename T>
     using vector = ::folly::fbvector<T>;
@@ -48,6 +50,8 @@ namespace yazik {
     using Try = ::folly::Try<T>;
 
     using dynamic = ::folly::dynamic;
+
+    using namespace ranges;
 
 } // end of ::yazik namespace
 
