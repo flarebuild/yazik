@@ -25,6 +25,8 @@ namespace yazik::rpc::grpc {
 
     public:
 
+        concurrency::scheduler_ptr_t scheduler() noexcept;
+
         template <
             template <class> typename Handle,
             typename RpcUnit

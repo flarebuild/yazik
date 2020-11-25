@@ -51,7 +51,7 @@ namespace yazik {
 
     using dynamic = ::folly::dynamic;
 
-    using namespace ranges;
+    namespace views = ::ranges::views;
 
 } // end of ::yazik namespace
 

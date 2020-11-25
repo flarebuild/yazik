@@ -5,7 +5,7 @@ blackjack:
 build_flare_bazel_cmake:
   maybe_path: "../../bazel_cmake"
   remote: "https://github.com/flarebuild/bazel_cmake"
-  commit: 0e7e556a037a7cdbdc0938c3062f7dc67b33d183
+  commit: a74ad7637778dad6a6130a4673d5e53a171a791f
 build_flare_bazel_deps:
   maybe_path: "../../bazel_deps"
   remote: "https://github.com/flarebuild/bazel_deps"

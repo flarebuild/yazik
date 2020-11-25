@@ -2,6 +2,8 @@
 
 #include <yazik/rpc/base/rpc_status.hpp>
 #include <yazik/utility/concepts.hpp>
+#include <yazik/concurrency/channel.hpp>
+#include <yazik/concurrency/generator.hpp>
 #include <yazik/concurrency/scheduler.hpp>
 
 namespace yazik::rpc {
@@ -20,6 +22,9 @@ namespace yazik::rpc {
 
      template<typename T>
     using RpcTaskIPtr = TaskIPtr<T, RpcStatus>;
+
+    template<typename T>
+    using RpcGenerator = Generator<T, RpcStatus>;
 
     template<typename T>
     using RpcChannel = Channel<T, RpcStatus>;
