@@ -39,7 +39,7 @@ namespace promises {
 
         GeneratorPromise() noexcept {};
         ~GeneratorPromise() {
-            if (_state == State::Value) {
+            if (_state == State::Errorred) {
                 _error.~Error();
             }
         }
