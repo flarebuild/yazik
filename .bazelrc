@@ -1,6 +1,3 @@
-build --disk_cache=/tmp/flare/dc
-build --repository_cache=/tmp/flare/rc
-
 build --strategy_regexp=^Linking=local
 
 build --crosstool_top=@llvm_toolchain//:toolchain
@@ -11,3 +8,5 @@ build:debug -c dbg
 build:debug --javacopt="-g"
 build:debug --copt="-g"
 build:debug --strip="never"
+
+try-import %workspace%/.bazelrc.user

@@ -3,3 +3,4 @@ bazel-*
 cmake_gen
 cmake-build-debug
 .idea
+.bazelrc.user
