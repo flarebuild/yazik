@@ -1,0 +1,181 @@
+def Enum::define() {
+    this.cpp_namespaced(fun [this] () {
+        wl("Enum::Enum(int value): _value{value} {}")
+        for (v: this.values()) {
+            w_cpp_fn_impl(
+                ["bool", "Enum::is_${ v.snake_case_name() }"],
+                [], [ "const", "noexcept" ],
+                fun [v] () { wl("return _value == ${v.name()};") }
+            )
+        }
+        w_cpp_fn_impl(
+            ["int", "Enum::which"],
+            [], [ "const", "noexcept" ],
+            fun () { wl("return _value;") }
+        )
+    })
+}
+
+def Variant::define_ref() {
+    w_cpp_constructor_impl_no_body(
+        [ "Ref::Ref"],
+        [ "void* ptr", "const RefVtable* vtable" ],
+        [ "noexcept"],
+        [ "_ptr { ptr }", "_vtable { vtable }" ]
+    )
+    for (field: this.fields()) {
+        var getter = field.cpp_in_variant_getter();
+        var type = field.resolve_cpp_ref_t_in_variant();
+        w_cpp_fn_impl(
+            [ "bool", "Ref::is_${ getter }"],
+            [], [ "const"],
+            fun [getter] () {
+                wl("return _vtable->is_${getter}(_ptr);")
+            }
+        )
+        w_cpp_fn_impl(
+            [ type, "Ref::${getter}"],
+            [], [ "const"],
+            fun [getter] () {
+                wl("return _vtable->${getter}(_ptr);")
+            }
+        )
+    }
+    w_cpp_fn_impl(
+        [ "bool", "Ref::is_null"],
+        [], [ "const" ],
+        fun () {
+            wl("return _vtable->is_null(_ptr);")
+        }
+    )
+}
+
+def Variant::define_builder() {
+    w_cpp_constructor_impl_no_body(
+        [ "Builder::Builder"],
+        [ "void* ptr", "const BuilderVtable* vtable" ],
+        [ "noexcept"],
+        [ "_ptr { ptr }", "_vtable { vtable }" ]
+    )
+    for (field: this.fields()) {
+        var getter = field.cpp_in_variant_getter();
+        var type = field.resolve_cpp_builder_t_in_variant();
+        if (field.is_repeated() || field.is_message()) {
+            var fn_type = cpp_fun("void", [ "${type}&" ])
+            w_cpp_fn_impl(
+                [ "void", "Builder::set_${getter}"],
+                [ "${fn_type} clbk" ], [],
+                fun [getter] () {
+                    wl("_vtable->set_${getter}(_ptr, std::move(clbk));")
+                }
+            )
+        } else {
+             w_cpp_fn_impl(
+                [ "void", "Builder::set_${getter}"],
+                [ "${type} value" ], [],
+                fun [getter] () {
+                    wl("_vtable->set_${getter}(_ptr, std::move(value));")
+                }
+            )
+        }
+    }
+}
+
+def Variant::define() {
+    this.cpp_namespaced(fun [this] () {
+        this.define_ref()
+        this.define_builder()
+    })
+}
+
+def Message::define_ref() {
+    w_cpp_constructor_impl_no_body(
+        [ "Ref::Ref" ],
+        [ "void* ptr", "const RefVtable* vtable" ],
+        [ "noexcept"],
+        [ "_ptr { ptr }", "_vtable { vtable }" ]
+    )
+    for (field: this.fields()) {
+        var getter = field.cpp_in_message_getter();
+        var type = field.resolve_cpp_ref_t_in_message();
+        w_cpp_fn_impl(
+            [ type, "Ref::${getter}" ],
+            [], [ "const"],
+            fun [getter] () {
+                wl("return _vtable->${getter}(_ptr);")
+            }
+        )
+    }
+    w_cpp_fn_impl(
+        [ "Builder", "Ref::as_builder"],
+        [], [ "const"],
+        fun () {
+            wl("return _vtable->as_builder(_ptr);")
+        }
+    )
+    w_cpp_fn_impl(
+        [ cpp_serialized_buffer, "Ref::serialize"],
+        [], [ "const"],
+        fun () {
+            wl("return _vtable->serialize(_ptr);")
+        }
+    )
+}
+
+def Message::define_builder() {
+    w_cpp_constructor_impl_no_body(
+        [ "Builder::Builder"],
+        [ "void* ptr", "const BuilderVtable* vtable" ],
+        [ "noexcept"],
+        [ "_ptr { ptr }", "_vtable { vtable }" ]
+    )
+    for (field: this.fields()) {
+        if (field.is_message() || field.is_repeated() || field.is_variant()) { continue }
+        var getter = field.cpp_in_message_getter()
+        var builder = field.resolve_cpp_builder_t_in_message()
+        w_cpp_fn_impl(
+            [ "void", "Builder::set_${getter} "],
+            [ "${builder} value" ], [],
+            fun [getter] () {
+                wl("_vtable->set_${getter}(_ptr, std::move(value));")
+            }
+        )
+    }
+    w_cpp_fn_impl(
+        ["void", "Builder::move_initialize_from"],
+        ["Ref&& r"], [],
+        fun () {
+            wl("_vtable->move_initialize_from(_ptr, r._ptr);")
+        }
+    )
+    w_cpp_fn_impl(
+        ["bool", "Builder::deserialize"],
+        ["${cpp_deserialized_buffer} data"], [],
+        fun () {
+            wl("return _vtable->deserialize(_ptr, data);")
+        }
+    )
+    w_cpp_fn_impl(
+        ["Ref", "Builder::as_ref"], [], [],
+        fun () {
+            wl("return _vtable->as_ref(_ptr);")
+        }
+    )
+}
+
+def Message::define() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.define() }
+        for(enum: this.enums()) { enum.define() }
+        for(variant: this.variants()) { variant.define() }
+        this.define_ref()
+        this.define_builder()
+    });
+}
+
+wl("#include <${replace_proto(m.file_name(), "yaz.h")}>")
+l()
+m.cpp_namespaced(fun () {
+    for(enum: m.enums()) { enum.define() }
+    for(message: m.messages()) { message.define() }
+})

@@ -1,0 +1,166 @@
+def Variant::declare_ref_pb_spec() {
+    w_cpp_struct("RefPbSpec: protected ${cpp_initializer}", fun [this] () {
+        var pb_type = this.parent().cpp_pb_t()
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter()
+            var type = field.resolve_cpp_ref_t_in_variant()
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "static", "bool", "is_${ getter }"],
+                [ "const ${pb_type}*" ], []
+            )
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "static", type, getter],
+                [ "const ${pb_type}*" ], []
+            )
+        }
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "bool", "is_null"],
+            [ "const ${pb_type}*" ], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "const RefVtable*", "vtable"],
+            [], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "Ref", "wrap"],
+            [ "${pb_type}&" ], []
+        )
+    })
+}
+
+def Variant::declare_ref_builder_pb_spec() {
+    w_cpp_struct("BuilderPbSpec: protected ${cpp_initializer}", fun [this] () {
+        var pb_type = this.parent().cpp_pb_t()
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter()
+            var type = field.resolve_cpp_builder_t_in_variant()
+            if (field.is_repeated() || field.is_message()) {
+                w_cpp_fn_decl(
+                    [ "static", "void", "set_${getter}"],
+                    [ "${pb_type}*", cpp_fun("void", ["${type}&"]) ], []
+                )
+            } else {
+                w_cpp_fn_decl(
+                    [ "static", "void", "set_${getter}"],
+                    [ "${pb_type}*", type ], []
+                )
+            }
+        }
+        w_cpp_fn_decl(
+            [ "static", "const BuilderVtable*", "vtable"],
+            [], []
+        )
+        w_cpp_fn_decl(
+            [ "static", "Builder", "wrap"],
+            [ "${pb_type}&" ], []
+        )
+    })
+}
+
+def Variant::declare() {
+    this.cpp_namespaced(fun [this] () {
+        this.declare_ref_pb_spec()
+        this.declare_ref_builder_pb_spec()
+    })
+}
+
+def Message::declare_ref_pb_spec() {
+    w_cpp_struct("RefPbSpec: protected ${cpp_initializer}", fun [this] () {
+        var pb_type = this.cpp_pb_t()
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter()
+            var type = field.resolve_cpp_ref_t_in_message()
+
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "static", type, getter],
+                [ "${pb_type}*" ], []
+            )
+        }
+
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "const RefVtable*", "vtable"],
+            [], []
+        )
+
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "Builder", "as_builder"],
+            [ "${pb_type}*" ], []
+        )
+
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", cpp_serialized_buffer, "serialize"],
+            [ "${pb_type}*" ], []
+        )
+
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "Ref", "wrap"],
+            [ "${pb_type}&" ], []
+        )
+    })
+
+}
+
+def Message::declare_ref_builder_pb_spec() {
+    w_cpp_struct("BuilderPbSpec: protected ${cpp_initializer}", fun [this] () {
+        var pb_type = this.cpp_pb_t()
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter()
+            var type = field.resolve_cpp_builder_t_in_message()
+
+            if (field.is_message() || field.is_repeated() || field.is_variant()) {
+                w_cpp_fn_decl(
+                    [ "[[nodiscard]]", "static", type, "construct_${getter}_builder"],
+                    [ "${pb_type}*" ], []
+                )
+            } else {
+                w_cpp_fn_decl(
+                    [ "static", "void", "set_${getter}"],
+                    [ "${pb_type}*", type ], []
+                )
+            }
+        }
+        w_cpp_fn_decl(
+            [ "static", "const BuilderVtable*", "vtable"],
+            [], []
+        )
+        w_cpp_fn_decl(
+            [ "static", "void", "move_initialize_from"],
+            [ "${pb_type}*", "${pb_type}*" ], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "bool", "deserialize"],
+            [ "${pb_type}*", cpp_deserialized_buffer], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "static", "Ref", "as_ref"],
+            [ "${pb_type}*" ], []
+        )
+        w_cpp_fn_decl(
+            [ "static", "Builder", "wrap"],
+            [ "${pb_type}&" ], []
+        )
+    })
+}
+
+def Message::declare() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.declare() }
+        for(variant: this.variants()) { variant.declare() }
+
+        this.declare_ref_pb_spec()
+        this.declare_ref_builder_pb_spec()
+    })
+}
+
+wl("#pragma once")
+l()
+wl("#include <${replace_proto(m.file_name(), "yaz.h")}>")
+wl("#include <${replace_proto(m.file_name(), "pb.h")}>")
+l()
+for(dep: m.deps()) {
+    wl("#include <${replace_proto(dep.file_name(), "pb.h")}>")
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for(message: m.messages()) { message.declare() }
+})

@@ -1,6 +1,8 @@
 #include "cpp_gen.hpp"
-#include "cpp_yaz_gen.hpp"
-#include "cpp_pb_gen.hpp"
+
+#include <google/protobuf/descriptor.pb.h>
+#include <yazik/compiler/utility/utility.hpp>
+#include <yazik/compiler/utility/writer.hpp>
 
 namespace yazik::compiler {
 
@@ -14,8 +16,27 @@ namespace yazik::compiler {
             const std::string& parameter,
             gpc::GeneratorContext* generator_context
         ) const noexcept override {
-            co_await generate_yaz(file, parameter, generator_context);
-            co_await generate_yaz_pb(file, parameter, generator_context);
+            {
+                chaiscript::ChaiScript script;
+                FileWriter w{ file, generator_context, "yaz.h"};
+                add_decls_to_chai(script, file, w);
+                script.eval_file("src/yazik/compiler/generators/cpp_yaz_gen_h.chai");
+            } {
+                chaiscript::ChaiScript script;
+                FileWriter w{ file, generator_context, "yaz.cc"};
+                add_decls_to_chai(script, file, w);
+                script.eval_file("src/yazik/compiler/generators/cpp_yaz_gen_cpp.chai");
+            } {
+                chaiscript::ChaiScript script;
+                FileWriter w{ file, generator_context, "yaz.pb.h"};
+                add_decls_to_chai(script, file, w);
+                script.eval_file("src/yazik/compiler/generators/cpp_yaz_pb_gen_h.chai");
+            } {
+                chaiscript::ChaiScript script;
+                FileWriter w{ file, generator_context, "yaz.pb.cc"};
+                add_decls_to_chai(script, file, w);
+                script.eval_file("src/yazik/compiler/generators/cpp_yaz_pb_gen_cpp.chai");
+            }
 
             co_return true;
         }

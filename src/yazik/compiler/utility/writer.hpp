@@ -3,6 +3,8 @@
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/printer.h>
 
+#include <chaiscript/chaiscript.hpp>
+
 #include <yazik/compiler/common.hpp>
 
 namespace yazik::compiler {
@@ -68,6 +70,19 @@ namespace yazik::compiler {
             };
             return wl(format_str, std::forward<Args>(args)...);
         }
+
+        template <typename S, typename... Args>
+        inline FileWriter& w_indent(const S& format_str, Args&&... args) {
+            _printer->Indent();
+            _printer->Indent();
+            yaz_defer {
+                _printer->Outdent();
+                _printer->Outdent();
+            };
+            return w(format_str, std::forward<Args>(args)...);
+        }
+
+        void add_to_chai(chaiscript::ChaiScript& script);
     };
 
 } // end of ::yazik::compiler namespace

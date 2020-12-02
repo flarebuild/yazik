@@ -18,6 +18,10 @@ namespace yazik::compiler {
         if (!gen_res)
             *error = gen_res.error();
 
+        if (!gen_res) {
+            L::error(std::move(gen_res.error()));
+        }
+
         return gen_res.value();
     }
 

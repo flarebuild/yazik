@@ -1,0 +1,457 @@
+def Enum::forward_declare() {
+    this.cpp_namespaced(fun () { wl("class Enum;"); })
+}
+
+def Enum::declare() {
+    this.cpp_namespaced(fun [this] () {
+        w_cpp_class("Enum", fun [this] () {
+            wl("int _value;")
+        wl_outdent("public:")
+            wl("Enum(int value);")
+            wl("enum Value {")
+            for (v: this.values()) {
+                wl_indent("${v.name()} = ${v.number()},")
+            }
+            wl("};")
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "int", "which"],
+                [], [ "const", "noexcept" ]
+            )
+            for (v: this.values()) {
+                w_cpp_fn_decl(
+                    [ "[[nodiscard]]", "bool", "is_${ v.snake_case_name() }"],
+                    [], [ "const", "noexcept" ]
+                )
+            }
+        })
+    })
+}
+
+def Variant::forward_declare() {
+    this.cpp_namespaced(fun [this] () {
+        wl("struct RefVtable;")
+        wl("class Ref;")
+        wl("struct BuilderVtable;")
+        wl("class Builder;")
+    })
+}
+
+def Variant::declare_ref_vtable() {
+    w_cpp_struct("RefVtable", fun [this] () {
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter();
+            var type = field.resolve_cpp_ref_t_in_variant();
+            wl("using is_${getter}_fn = bool (*)(const void*);")
+            wl("is_${getter}_fn is_${getter};")
+            wl("using ${getter}_fn = ${type} (*)(const void*);")
+            wl("${getter}_fn ${getter};")
+        }
+        wl("using is_null_fn = bool (*)(const void*);")
+        wl("is_null_fn is_null;")
+    })
+}
+
+def Variant::declare_ref() {
+    w_cpp_class("Ref", fun [this] () {
+        wl("void* _ptr;")
+        wl("const RefVtable* _vtable;")
+        w_cpp_fn_decl(
+            [ "Ref"],
+            [ "void* ptr", "const RefVtable* vtable" ],
+            [ "noexcept"]
+        )
+        wl("friend class ${cpp_initializer};")
+    wl_outdent("public:")
+        wl("using vtable_t = RefVtable;")
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter();
+            var type = field.resolve_cpp_ref_t_in_variant();
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "bool", "is_${ getter }"],
+                [], [ "const"]
+            )
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", type, getter],
+                [], [ "const"]
+            )
+        }
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "bool", "is_null"],
+            [], [ "const"]
+        )
+    })
+}
+
+def Variant::declare_builder_vtable() {
+    w_cpp_struct("BuilderVtable", fun [this] () {
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter();
+            var type = field.resolve_cpp_builder_t_in_variant();
+
+            if (field.is_repeated() || field.is_message()) {
+                var fn_type = cpp_fun("void", [ "${type}&" ])
+                wl("using set_${getter}_fn = void (*)(void*, ${fn_type});")
+            } else {
+                wl("using set_${getter}_fn = void (*)(void*, ${type});")
+            }
+            wl("set_${getter}_fn set_${getter};")
+        }
+        wl("using is_null_fn = bool (*)(const void*);")
+        wl("is_null_fn is_null;")
+    })
+}
+
+def Variant::declare_builder() {
+    w_cpp_class("Builder", fun [this] () {
+        wl("void* _ptr;")
+        wl("const BuilderVtable* _vtable;")
+        w_cpp_fn_decl(
+            [ "Builder"],
+            [ "void* ptr", "const BuilderVtable* vtable" ],
+            [ "noexcept"]
+        )
+        wl("friend class ${cpp_initializer};")
+    wl_outdent("public:")
+        wl("using vtable_t = BuilderVtable;")
+        for (field: this.fields()) {
+            var getter = field.cpp_in_variant_getter();
+            var type = field.resolve_cpp_builder_t_in_variant();
+            if (field.is_repeated() || field.is_message()) {
+                var fn_type = cpp_fun("void", [ "${type}&" ])
+                w_cpp_fn_decl(
+                    [ "void", "set_${getter}"],
+                    [ fn_type ], []
+                )
+            } else {
+                 w_cpp_fn_decl(
+                    [ "void", "set_${getter}"],
+                    [ type ], []
+                )
+            }
+        }
+    })
+}
+
+def Variant::declare() {
+    this.cpp_namespaced(fun [this] () {
+        this.declare_ref_vtable()
+        this.declare_ref()
+        this.declare_builder_vtable()
+        this.declare_builder()
+    })
+}
+
+def Message::forward_declare() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.forward_declare() }
+        for(enum: this.enums()) { enum.forward_declare() }
+        for(variant: this.variants()) { variant.forward_declare() }
+        wl("struct RefVtable;");
+        wl("class Ref;");
+        wl("struct BuilderVtable;");
+        wl("class Builder;")
+        wl("template <typename Parent>")
+        wl("class LayeredBuilder;")
+    });
+}
+
+def Message::declare_ref_vtable() {
+    w_cpp_struct("RefVtable", fun [this] () {
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter();
+            var type = field.resolve_cpp_ref_t_in_message();
+            wl("using ${getter}_fn = ${type} (*)(const void*);")
+            wl("${getter}_fn ${getter};")
+        }
+        wl("using as_builder_fn = Builder (*)(void*);")
+        wl("as_builder_fn as_builder;")
+        wl("using serialize_fn = ${cpp_serialized_buffer} (*)(void*);")
+        wl("serialize_fn serialize;")
+    })
+}
+
+def Message::declare_ref() {
+    w_cpp_class("Ref", fun [this] () {
+        wl("void* _ptr;")
+        wl("const RefVtable* _vtable;")
+        w_cpp_fn_decl(
+            [ "Ref"],
+            [ "void* ptr", "const RefVtable* vtable" ],
+            [ "noexcept"]
+        )
+        wl("friend class Builder;")
+        wl("friend class ${cpp_initializer};")
+    wl_outdent("public:")
+        wl("using vtable_t = RefVtable;")
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter();
+            var type = field.resolve_cpp_ref_t_in_message();
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", type, getter],
+                [], [ "const"]
+            )
+        }
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "Builder", "as_builder"],
+            [], [ "const"]
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", cpp_serialized_buffer, "serialize"],
+            [], [ "const"]
+        )
+    })
+}
+
+def Message::declare_builder_vtable() {
+    w_cpp_struct("BuilderVtable", fun [this] () {
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter();
+            var builder = field.resolve_cpp_builder_t_in_message()
+            if (field.is_message() || field.is_repeated() || field.is_variant()) {
+                wl("using construct_${getter}_builder_fn = ${builder} (*)(const void*);")
+                wl("construct_${getter}_builder_fn construct_${getter}_builder;")
+            } else {
+                wl("using set_${getter}_fn = void (*)(const void*, ${builder});")
+                wl("set_${getter}_fn set_${getter};")
+            }
+        }
+        wl("using move_initialize_from_fn = void (*)(void*, void*);")
+        wl("move_initialize_from_fn move_initialize_from;")
+        wl("using deserialize_fn = bool (*)(const void*, std::string_view);")
+        wl("deserialize_fn deserialize;")
+        wl("using as_ref_fn = Ref (*)(void*);")
+        wl("as_ref_fn as_ref;")
+    })
+}
+
+def Message::declare_builder() {
+    for (field: this.fields()) {
+        if (!field.is_message() && !field.is_repeated() && !field.is_variant()) { continue }
+        var getter = field.cpp_in_message_getter()
+        var builder = field.resolve_cpp_builder_t_in_message()
+        w_cpp_concept(
+            [ "typename Fn" ],
+            ["s_${this.snake_case_name()}_${getter}_clbk", "=", "requires"],
+            ["Fn&& fn", "${builder}& builder"], [],
+            fun () {
+                wl("{ fn(builder) } -> ::yazik::concepts::c_same_as<void>;")
+            }
+        )
+    }
+    w_cpp_class("Builder",  fun [this] () {
+    wl_outdent("protected:")
+        wl("void* _ptr;")
+        wl("const BuilderVtable* _vtable;")
+        w_cpp_fn_decl(
+            [ "Builder"],
+            [ "void* ptr", "const BuilderVtable* vtable" ],
+            [ "noexcept"]
+        )
+        wl("friend class ${cpp_initializer};")
+    wl_outdent("public:")
+        wl("template <typename Parent>")
+        wl("using layered_t = LayeredBuilder<Parent>;")
+        wl("using vtable_t = BuilderVtable;")
+        for (field: this.fields()) {
+            var getter = field.cpp_in_message_getter()
+            var builder = field.resolve_cpp_builder_t_in_message()
+
+            if (field.is_message() || field.is_repeated() || field.is_variant()) {
+                var concept_name = "s_${this.snake_case_name()}_${getter}_clbk"
+                wl("template <${concept_name} Fn>")
+                w_cpp_fn_decl(
+                    [ "inline", "void", "set_${getter}"],
+                    [ "Fn&&"], [ ]
+                )
+            } else {
+                w_cpp_fn_decl(
+                    ["void", "set_${getter}"],
+                    [builder], []
+                )
+            }
+        }
+        w_cpp_fn_decl(
+            ["void", "move_initialize_from"],
+            ["Ref&&"], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "bool", "deserialize"],
+            [cpp_deserialized_buffer], []
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "Ref", "as_ref"], [], []
+        )
+        wl("template <typename Parent>")
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "LayeredBuilder<Parent>", "layered"],
+            ["Parent*"], []
+        )
+    })
+}
+
+def Message::declare_layered_builder() {
+    wl("template <typename Parent>")
+    w_cpp_class(
+        "LayeredBuilder final\n: public Builder\n, virtual protected ${cpp_initializer}",
+        fun [this] () {
+        wl_outdent("public:")
+            wl("using Base = Builder;")
+            wl("using base_builder_t = Builder;")
+            wl("using parent_t = Parent;")
+        wl_outdent("private:")
+            wl("using Self = LayeredBuilder<Parent>;")
+            wl("Parent* _parent;")
+            w_cpp_fn_decl(
+                [ "LayeredBuilder"],
+                [ "void* ptr", "const BuilderVtable* vtable", "Parent* parent" ],
+                [ "noexcept"]
+            )
+            wl("friend class Builder;")
+            wl("friend class ${cpp_initializer};")
+        wl_outdent("public:")
+            for (field: this.fields()) {
+                if (field.is_variant()) {
+                    // TODO: impl
+                    continue
+                }
+
+                var getter = field.cpp_in_message_getter()
+
+                if (field.is_message() || field.is_repeated()) {
+                    var layered_builder = field.resolve_cpp_layered_builder_t()
+                    w_cpp_fn_decl(
+                        [ layered_builder, getter], [], []
+                    )
+                } else {
+                    var builder = field.resolve_cpp_builder_t_in_message()
+                    w_cpp_fn_decl(
+                        [ "Self&", getter], [ builder ], []
+                    )
+                }
+            }
+            w_cpp_fn_decl(
+                [ "Self&", "move_from"], [ "${this.cpp_ref_t()}&&" ], []
+            )
+            w_cpp_fn_decl(
+                [ "Parent", "done"], [], []
+            )
+        }
+    )
+}
+
+def Message::declare() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.declare() }
+        for(enum: this.enums()) { enum.declare() }
+        for(variant: this.variants()) { variant.declare() }
+        this.declare_ref_vtable()
+        this.declare_ref()
+        this.declare_builder_vtable()
+        this.declare_builder()
+        this.declare_layered_builder()
+    });
+}
+
+def Message::define_builder_templ() {
+    for (field: this.fields()) {
+        if (!field.is_message() && !field.is_repeated() && !field.is_variant()) { continue }
+        var getter = field.cpp_in_message_getter()
+        var concept_name = "s_${this.snake_case_name()}_${getter}_clbk"
+        wl("template <${concept_name} Fn>")
+        w_cpp_fn_impl(
+            [ "inline", "void", "Builder::set_${getter}"],
+            [ "Fn&& fn"], [ ],
+            fun [getter]() {
+                wl("auto builder = _vtable->construct_${getter}_builder(_ptr);");
+                wl("fn(builder);")
+            }
+        )
+    }
+    wl("template <typename Parent>")
+    w_cpp_fn_impl(
+        [ "[[nodiscard]]", "LayeredBuilder<Parent>", "Builder::layered"],
+        ["Parent* parent"], [],
+        fun () {
+            wl("return { _ptr, _vtable, parent };")
+        }
+    )
+}
+
+def Message::define_layered_builder_templ() {
+    wl("template <typename Parent>")
+    w_cpp_constructor_impl_no_body(
+        [ "LayeredBuilder<Parent>::LayeredBuilder"],
+        [ "void* ptr", "const BuilderVtable* vtable", "Parent* parent" ],
+        [ "noexcept"],
+        [ "Base { ptr, vtable }", "_parent { parent }" ]
+    )
+    for (field: this.fields()) {
+        if (field.is_variant()) {
+            // TODO: impl
+            continue
+        }
+        var getter = field.cpp_in_message_getter()
+        wl("template <typename Parent>")
+        if (field.is_message() || field.is_repeated()) {
+            var layered_builder = field.resolve_cpp_layered_builder_t()
+            w_cpp_fn_impl(
+                [ "auto", "LayeredBuilder<Parent>::${getter}"],
+                [], [ "-> ${layered_builder}"],
+                fun [getter]() {
+                    wl("return _vtable->construct_${getter}_builder(_ptr).layered(this);")
+                }
+            )
+        } else {
+            var builder = field.resolve_cpp_builder_t_in_message()
+            w_cpp_fn_impl(
+                [ "auto", "LayeredBuilder<Parent>::${getter}"],
+                [ "${builder} value" ], ["-> Self&"],
+                fun [getter]() {
+                    wl("this->set_${getter}(std::move(value));")
+                    wl("return *this;")
+                }
+            )
+        }
+    }
+    wl("template <typename Parent>")
+    w_cpp_fn_impl(
+        [ "auto", "LayeredBuilder<Parent>::move_from"],
+        [ "${this.cpp_ref_t()}&& r" ], [ "-> Self&" ],
+        fun () {
+            wl("this->move_initialize_from(std::move(r));")
+            wl("return *this;")
+        }
+    )
+    wl("template <typename Parent>")
+    w_cpp_fn_impl(
+        [ "Parent", "LayeredBuilder<Parent>::done"], [], [],
+        fun () {
+            wl("return std::move(*this->_parent);")
+        }
+    )
+}
+
+def Message::define_templ() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.define_templ() }
+        this.define_builder_templ()
+        this.define_layered_builder_templ()
+    })
+}
+
+wl("#pragma once")
+l()
+wl("#include <yazik/compiler/support/support.hpp>");
+l()
+for(dep: m.deps()) {
+    wl("#include <${replace_proto(dep.file_name(), "yaz.h")}>")
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for(enum: m.enums()) { enum.forward_declare() }
+    for(message: m.messages()) { message.forward_declare() }
+
+    for(enum: m.enums()) { enum.declare() }
+    for(message: m.messages()) { message.declare() }
+    for(message: m.messages()) { message.define_templ() }
+})

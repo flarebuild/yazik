@@ -1,0 +1,259 @@
+def Variant::define_ref_pb_spec() {
+    var pb_type = this.parent().cpp_pb_t()
+    for (field: this.fields()) {
+        var getter = field.cpp_in_variant_getter();
+        var type = field.resolve_cpp_ref_t_in_variant();
+        w_cpp_fn_impl(
+            [ "bool", "RefPbSpec::is_${ getter }"],
+            [ "const ${pb_type}* p" ], [],
+            fun [this, field, pb_type]() {
+                wl("return p->${this.snake_case_name()}_case() == ${pb_type}::k${field.camel_case_name()};")
+            }
+        )
+        w_cpp_fn_impl(
+            [ type, "RefPbSpec::${getter}" ],
+            [ "const ${pb_type}* p" ], [],
+            fun [field]() {
+                field.cpp_unwrap_in_variant()
+            }
+        )
+    }
+    w_cpp_fn_impl(
+        [ "bool", "RefPbSpec::is_null"],
+        [ "const ${pb_type}* p" ], [],
+        fun [this, pb_type] () {
+            wl("return p->${this.snake_case_name()}_case() == ${pb_type}::${this.camel_case_upper_name()}_NOT_SET;")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "const RefVtable*", "RefPbSpec::vtable"],
+        [], [],
+        fun [this]() {
+            w("const static RefVtable s_vtable ")
+            braced(fun [this]() {
+                for (field: this.fields()) {
+                    var getter = field.cpp_in_variant_getter();
+                    wl(".is_${getter} = (RefVtable::is_${getter}_fn)&RefPbSpec::is_${getter},")
+                    wl(".${getter} = (RefVtable::${getter}_fn)&RefPbSpec::${getter},")
+                }
+                wl(".is_null = (RefVtable::is_null_fn)&RefPbSpec::is_null,")
+            })
+            wl(";")
+            wl("return &s_vtable;")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "Ref", "RefPbSpec::wrap"],
+        [ "${pb_type}& p" ], [],
+        fun () {
+            wl("return create_entity<Ref>(static_cast<void*>(&p), vtable());")
+        }
+    )
+}
+
+def Variant::define_ref_builder_pb_spec() {
+    var pb_type = this.parent().cpp_pb_t()
+    for (field: this.fields()) {
+        var getter = field.cpp_in_variant_getter()
+        var type = field.resolve_cpp_builder_t_in_variant()
+
+        if (field.is_repeated() || field.is_message()) {
+            var clbk = cpp_fun("void", ["${type}&"])
+            w_cpp_fn_impl(
+                [ "void", "BuilderPbSpec::set_${getter}"],
+                [ "${pb_type}* p", "${clbk} clbk" ], [],
+                fun [field] () {
+                    field.cpp_unwrap_builder_in_variant()
+                }
+            )
+        } else {
+            w_cpp_fn_impl(
+                [ "void", "BuilderPbSpec::set_${getter}"],
+                [ "${pb_type}* p", "${type} value" ], [],
+                fun [field] () {
+                    field.cpp_unwrap_builder_in_variant()
+                }
+            )
+        }
+    }
+    w_cpp_fn_impl(
+        [ "const BuilderVtable*", "BuilderPbSpec::vtable"],
+        [], [],
+        fun [this] () {
+            w("const static BuilderVtable s_vtable ")
+            braced(fun [this]() {
+                for (field: this.fields()) {
+                    var getter = field.cpp_in_variant_getter()
+                    wl(".set_${getter} = (BuilderVtable::set_${getter}_fn)&BuilderPbSpec::set_${getter},")
+                }
+            })
+            wl(";")
+            wl("return &s_vtable;")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "Builder", "BuilderPbSpec::wrap"],
+        [ "${pb_type}& p" ], [],
+        fun () {
+            wl("return create_builder<Builder>(static_cast<void*>(&p), vtable());")
+        }
+    )
+}
+
+def Variant::define() {
+    this.cpp_namespaced(fun [this] () {
+        this.define_ref_pb_spec()
+        this.define_ref_builder_pb_spec()
+    })
+}
+
+def Message::define_ref_pb_spec() {
+    var pb_type = this.cpp_pb_t()
+    for (field: this.fields()) {
+        var getter = field.cpp_in_message_getter()
+        var type = field.resolve_cpp_ref_t_in_message()
+
+        w_cpp_fn_impl(
+            [ type, "RefPbSpec::${getter}" ],
+            [ "${pb_type}* p" ], [],
+            fun [field] () {
+                field.cpp_unwrap_in_message()
+            }
+        )
+    }
+
+    w_cpp_fn_impl(
+        [ "const RefVtable*", "RefPbSpec::vtable"],
+        [], [],
+        fun [this] () {
+            w("const static RefVtable s_vtable ")
+            braced(fun [this]() {
+                for (field: this.fields()) {
+                    var getter = field.cpp_in_message_getter();
+                    wl(".${getter} = (RefVtable::${getter}_fn)&RefPbSpec::${getter},")
+                }
+
+                wl(".as_builder = (RefVtable::as_builder_fn)&RefPbSpec::as_builder,")
+                wl(".serialize = (RefVtable::serialize_fn)&RefPbSpec::serialize,")
+            })
+            wl(";")
+            wl("return &s_vtable;")
+        }
+    )
+
+    w_cpp_fn_impl(
+        [ "Builder", "RefPbSpec::as_builder"],
+        [ "${pb_type}* p" ], [],
+        fun () {
+            wl("return BuilderPbSpec::wrap(*p);")
+        }
+    )
+
+    w_cpp_fn_impl(
+        [ cpp_serialized_buffer, "RefPbSpec::serialize"],
+        [ "${pb_type}* p" ], [],
+        fun () {
+            wl("return p->SerializeAsString();")
+        }
+    )
+
+    w_cpp_fn_impl(
+        [ "Ref", "RefPbSpec::wrap"],
+        [ "${pb_type}& p" ], [],
+        fun () {
+            wl("return create_entity<Ref>(static_cast<void*>(&p), vtable());")
+        }
+    )
+}
+
+def Message::define_ref_builder_pb_spec() {
+    var pb_type = this.cpp_pb_t()
+    for (field: this.fields()) {
+        var getter = field.cpp_in_message_getter()
+        var type = field.resolve_cpp_builder_t_in_message()
+
+        if (field.is_message() || field.is_repeated() || field.is_variant()) {
+            w_cpp_fn_impl(
+                [ type, "BuilderPbSpec::construct_${getter}_builder"],
+                [ "${pb_type}* p" ], [],
+                fun [field] () {
+                    field.cpp_unwrap_builder_in_message()
+                }
+            )
+        } else {
+            w_cpp_fn_impl(
+                [ "void", "BuilderPbSpec::set_${getter}"],
+                [ "${pb_type}* p", "${type} value" ], [],
+                fun [field] () {
+                    field.cpp_unwrap_builder_in_message()
+                }
+            )
+        }
+    }
+    w_cpp_fn_impl(
+        [ "const BuilderVtable*", "BuilderPbSpec::vtable"],
+        [], [],
+        fun [this] () {
+            w("const static BuilderVtable s_vtable ")
+            braced(fun [this]() {
+                for (field: this.fields()) {
+                    var getter = field.cpp_in_message_getter()
+                    if (field.is_message() || field.is_repeated() || field.is_variant()) {
+                        wl(".construct_${getter}_builder = (BuilderVtable::construct_${getter}_builder_fn)&BuilderPbSpec::construct_${getter}_builder,")
+                    } else {
+                        wl(".set_${getter} = (BuilderVtable::set_${getter}_fn)&BuilderPbSpec::set_${getter},")
+                    }
+                }
+                wl(".move_initialize_from = (BuilderVtable::move_initialize_from_fn)&BuilderPbSpec::move_initialize_from,")
+                wl(".deserialize = (BuilderVtable::deserialize_fn)&BuilderPbSpec::deserialize,")
+                wl(".as_ref = (BuilderVtable::as_ref_fn)&BuilderPbSpec::as_ref,")
+            })
+            wl(";")
+            wl("return &s_vtable;")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "void", "BuilderPbSpec::move_initialize_from"],
+        [ "${pb_type}* a", "${pb_type}* b" ], [],
+        fun () {
+            wl("a->Swap(b);")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "bool", "BuilderPbSpec::deserialize"],
+        [ "${pb_type}* p", "${cpp_deserialized_buffer} data"], [],
+        fun () {
+            wl("return p->ParseFromArray(data.data(), data.size());")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "Ref", "BuilderPbSpec::as_ref"],
+        [ "${pb_type}* p" ], [],
+        fun () {
+            wl("return create_entity<Ref>(static_cast<void*>(p), RefPbSpec::vtable());")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "Builder", "BuilderPbSpec::wrap"],
+        [ "${pb_type}& p" ], [],
+        fun [this] () {
+            wl("return create_builder<Builder>(static_cast<void*>(&p), vtable());")
+        }
+    )
+}
+
+def Message::define() {
+    this.cpp_namespaced(fun [this] () {
+        for(nested: this.nested()) { nested.define() }
+        for(variant: this.variants()) { variant.define() }
+
+        this.define_ref_pb_spec()
+        this.define_ref_builder_pb_spec()
+    })
+}
+
+wl("#include <${replace_proto(m.file_name(), "yaz.pb.h")}>")
+l()
+m.cpp_namespaced(fun () {
+    for(message: m.messages()) { message.define() }
+})

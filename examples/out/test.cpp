@@ -1,4 +1,5 @@
 #include <book/sample.yaz.pb.h>
+#include <book/sample.yaz.rpc.h>
 #include <book/sample.yaz.grpc.h>
 #include <grpcpp/grpcpp.h>
 #include <yazik/utility/logging.hpp>
@@ -8,28 +9,28 @@ using namespace ::com::book;
 using namespace ::yazik;
 using namespace ::yazik::compiler::support;
 
-void fill(BookBuilder builder) {
+void fill(book::Builder builder) {
     builder.set_isbn(42);
     builder.set_title("So uniq title");
-    builder.set_author([](AuthorBuilder& author) {
+    builder.set_author([](author::Builder& author) {
         author.set_name("Arthur Bookman");
     });
-    builder.set_pages([](VecEntityBuilder<BookPageBuilder>& pages) {
-        pages.push_back([](BookPageBuilder& page) {
+    builder.set_pages([](VecEntityBuilder<book::page::Builder>& pages) {
+        pages.push_back([](book::page::Builder& page) {
             page.set_lines([](VecBuilder<std::string>& lines){
                 lines.push_back("first line");
                 lines.push_back("second line");
                 lines.push_back("third line");
             });
         });
-        pages.push_back([](BookPageBuilder& page) {
+        pages.push_back([](book::page::Builder& page) {
             page.set_lines([](VecBuilder<std::string>& lines){
                 lines.push_back("first line");
                 lines.push_back("second line");
                 lines.push_back("third line");
             });
         });
-        pages.push_back([](BookPageBuilder& page) {
+        pages.push_back([](book::page::Builder& page) {
             page.set_lines([](VecBuilder<std::string>& lines){
                 lines.push_back("first line");
                 lines.push_back("second line");
@@ -37,18 +38,18 @@ void fill(BookBuilder builder) {
             });
         });
     });
-    builder.set_first_oneof([](BookFirstOneofVariantBuilder& first_oneof) {
+    builder.set_first_oneof([](book::first_oneof::Builder& first_oneof) {
         first_oneof.set_first_oneof_int(42);
     });
-    builder.set_availability(BookAvailabilityEnum::Available);
-    builder.set_recommended(CanRecommendEnum::Nope);
-    builder.set_second_oneof([](BookSecondOneofVariantBuilder& second_oneof) {
+    builder.set_availability(book::availability::Enum::Available);
+    builder.set_recommended(can_recommend::Enum::Nope);
+    builder.set_second_oneof([](book::second_oneof::Builder& second_oneof) {
         second_oneof.set_second_oneof_string("second_oneof_string");
     });
 }
 
 template<typename T>
-void fill_layered(BookLayeredBuilder<T>& builder) {
+void fill_layered(book::LayeredBuilder<T>& builder) {
     builder
         .isbn(42)
         .title("So uniq title")
@@ -78,12 +79,12 @@ void fill_layered(BookLayeredBuilder<T>& builder) {
                     .done()
                 .done()
             .done()
-        .availability(BookAvailabilityEnum::Available)
-        .recommended(CanRecommendEnum::Nope)
+        .availability(book::availability::Enum::Available)
+        .recommended(can_recommend::Enum::Nope)
     ;
 }
 
-void print(BookEntityRef book) {
+void print(book::Ref book) {
     L::debug("isbn: {}", book.isbn());
     L::debug("title: {}", book.title());
     L::debug("author: {}", book.author().name());
@@ -96,7 +97,7 @@ void print(BookEntityRef book) {
     }
     L::debug(
         "first_oneof: {}",
-        [&](BookFirstOneofVariantRef one_of) {
+        [&](book::first_oneof::Ref one_of) {
             if (one_of.is_first_oneof_int())
                 return do_format("int - {}", one_of.first_oneof_int());
             else
@@ -117,7 +118,7 @@ void print(BookEntityRef book) {
     );
     L::debug(
         "second_oneof: {}",
-        [&](BookSecondOneofVariantRef one_of) {
+        [&](book::second_oneof::Ref one_of) {
             if (one_of.is_second_oneof_int())
                 return do_format("int - {}", one_of.second_oneof_int());
             else
@@ -126,11 +127,11 @@ void print(BookEntityRef book) {
     );
 }
 
-struct GetBookSync: BookServiceGetBookSyncFunctor {
-    ::yazik::rpc::RpcResult<ResponseTag> operator () (
-        BookServiceGetBookCtx& ctx,
-        GetBookRequestEntityRef&& request
-    ) override {
+struct GetBookSync: book_service::get_book::SyncCall {
+    ::yazik::rpc::RpcResult<::yazik::rpc::RespOk<book::Ref>> call(
+        book_service::get_book::Ctx& ctx,
+        get_book_request::Ref request
+    ) {
         co_return ctx.response
             .isbn(42)
             .title("So uniq title")
@@ -160,17 +161,26 @@ struct GetBookSync: BookServiceGetBookSyncFunctor {
                         .done()
                     .done()
                 .done()
-            .availability(BookAvailabilityEnum::Available)
-            .recommended(CanRecommendEnum::Nope)
+            .availability(book::availability::Enum::Available)
+            .recommended(can_recommend::Enum::Nope)
             .done();
+    }
+};
+
+struct SyncCallSample: book_service::get_book::SyncCall {
+    ::yazik::rpc::RpcResult<::yazik::rpc::RespOk<book::Ref>> call(
+        context_t context,
+        get_book_request::Ref request
+    ) noexcept {
+        co_return context.response.done();
     }
 };
 
 int main() {
     {
         auto book = Book{};
-        fill(BookPbBuilderSpec::wrap(book));
-        print(BookPbSpec::wrap(book));
+        fill(book::BuilderPbSpec::wrap(book));
+        print(book::RefPbSpec::wrap(book));
     }
     L::debug("#########################");
     {
@@ -178,20 +188,20 @@ int main() {
         compiler::support::Initializer i;
         ::folly::Unit unit;
         auto book_wrap = Initializer::create_builder<
-            BookLayeredBuilder<::folly::Unit>
-        >(std::make_tuple(
+            book::LayeredBuilder<::folly::Unit>
+        >(
             (void *) &book,
-            BookPbBuilderSpec::vtable(),
+            book::BuilderPbSpec::vtable(),
             &unit
-        ));
+        );
         fill_layered(book_wrap);
         print(book_wrap.as_ref());
     }
     {
         rpc::grpc::Runtime runtime;
         auto& worker = runtime.add_worker();
-        static_assert(c_book_service_get_book_sync_unit<BookServiceGetBookSyncFunctor>);
-        worker->spawn<BookServiceGetBookGrpcHandle>(BookServiceGetBookSyncFunctor{});
+        static_assert(book_service::get_book::c_sync_unit<SyncCallSample>);
+        worker->spawn<book_service::get_book::SyncGrpcHandle>(SyncCallSample{});
         runtime.start().wait();
     }
     return 0;

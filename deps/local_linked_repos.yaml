@@ -9,4 +9,4 @@ build_flare_bazel_cmake:
 build_flare_bazel_deps:
   maybe_path: "../../bazel_deps"
   remote: "https://github.com/flarebuild/bazel_deps"
-  commit: 2688b4723b94e831f801eb6026faff15912de54a
+  commit: 560e0899dbd5185ff2d2f69e4aa8e78a5c72d3dc

@@ -3,6 +3,7 @@
 
 #include "writer.hpp"
 
+#include <chaiscript/chaiscript.hpp>
 
 namespace yazik::compiler {
 
@@ -70,6 +71,152 @@ namespace yazik::compiler {
         };
         fn();
         return *this;
+    }
+
+    void FileWriter::add_to_chai(chaiscript::ChaiScript& script) {
+        using namespace chaiscript;
+        script.add(fun(
+            [this](const std::string& str) { w("{}", str); }),
+            "w"
+        );
+        script.add(fun(
+            [this](const std::string& str) { wl("{}", str); }),
+            "wl"
+        );
+        script.add(fun(
+            [this]() { l(); }),
+            "l"
+        );
+        script.add(fun(
+            [this](const std::string& str) { wl_indent("{}", str); }),
+            "wl_indent"
+        );
+        script.add(fun(
+            [this](const std::string& str) { wl_outdent("{}", str); }),
+            "wl_outdent"
+        );
+
+        script.add(
+            fun([this](const std::string& name, std::function<void()> fn) {
+                w("struct {} ", name)
+                    .braced_detail(std::move(fn), false)
+                    .wl(";");
+            }),
+            "w_cpp_struct"
+        );
+        script.add(
+            fun([this](const std::string& name, std::function<void()> fn) {
+                w("class {} ", name)
+                    .braced_detail(std::move(fn), false)
+                    .wl(";");
+            }),
+            "w_cpp_class"
+        );
+
+
+        script.add(
+            fun([this](std::function<void()> fn) {
+                wl("/*");
+                fn();
+                wl("*/");
+            }),
+            "w_cpp_commented"
+        );
+
+        auto func_base = [this] (
+            const std::vector<std::string>& decl,
+            const std::vector<std::string>& args,
+            const std::vector<std::string>& mods
+        ) {
+            w("{}(", decl
+                | views::join(' ')
+                | ranges::to<std::string>() );
+
+            if (args.empty()) {
+                w(")");
+            } else if (args.size() == 1) {
+                w("{})", args[0]);
+            } else {
+                w_indent("\n{}\n", args
+                    | views::join(std::string{",\n"})
+                    | ranges::to<std::string>()
+                ).w(")");
+            }
+            if (!mods.empty()) {
+                w(" ");
+                w(mods
+                    | views::join(' ')
+                    | ranges::to<std::string>());
+            }
+
+        };
+        script.add(
+            fun([this, func_base] (
+                const std::vector<std::string>& decl,
+                const std::vector<std::string>& args,
+                const std::vector<std::string>& mods
+            ) {
+                func_base(decl, args, mods);
+                wl(";");
+            }),
+            "w_cpp_fn_decl"
+        );
+        script.add(
+            fun([this, func_base] (
+                const std::vector<std::string>& decl,
+                const std::vector<std::string>& args,
+                const std::vector<std::string>& mods,
+                std::function<void()> fn
+            ) {
+                func_base(decl, args, mods);
+                w(" ");
+                braced(std::move(fn));
+            }),
+            "w_cpp_fn_impl"
+        );
+        script.add(
+            fun([this, func_base] (
+                const std::vector<std::string>& templ,
+                const std::vector<std::string>& decl,
+                const std::vector<std::string>& args,
+                const std::vector<std::string>& mods,
+                std::function<void()> fn
+            ) {
+                wl("template <{}>", templ
+                    | views::join(std::string{", "})
+                    | ranges::to<std::string>());
+                w("concept ");
+                func_base(decl, args, mods);
+                w(" ");
+                braced_detail(std::move(fn), false);
+                wl(";");
+            }),
+            "w_cpp_concept"
+        );
+        script.add(
+            fun([this, func_base] (
+                const std::vector<std::string>& decl,
+                const std::vector<std::string>& args,
+                const std::vector<std::string>& mods,
+                const std::vector<std::string>& value_inits
+            ) {
+                func_base(decl, args, mods);
+                if (!value_inits.empty()) {
+                    wl("\n: {}", value_inits
+                        | views::join(std::string{"\n, "})
+                        | ranges::to<std::string>());
+                }
+                wl("{{}}");
+            }),
+            "w_cpp_constructor_impl_no_body"
+        );
+        script.add(
+            fun([this](std::function<void()> fn) {
+                braced_detail(std::move(fn), false);
+            }),
+            "braced"
+        );
+
     }
 
 } // end of ::yazik::compiler namespace

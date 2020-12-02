@@ -8,13 +8,6 @@
 
 namespace yazik::compiler::rpc_support {
 
-    enum class RpcUnitType {
-        UnarySync,
-        UnaryAsync,
-        ServerStreaming,
-        ClientStreaming
-    };
-
     template <
         typename Fn,
         typename Ctx

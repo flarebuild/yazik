@@ -2,11 +2,15 @@
 #include <yazik/utility/concepts.hpp>
 #include <range/v3/all.hpp>
 
+#include <chaiscript/chaiscript.hpp>
+
+#include <yazik/compiler/utility/writer.hpp>
+
 namespace yazik::compiler {
 
     std::string q(const std::string& str);
     std::string ab(const std::string& str);
-    std::string cb(const std::string& str);
+    std::string qb(const std::string& str);
     std::string strip_proto(const std::string& filename);
     std::string replace_proto(const std::string& filename, const std::string& ext);
     std::string camel_case(const std::string& str);
@@ -14,6 +18,12 @@ namespace yazik::compiler {
     std::string snake_case(const std::string& str);
 
     std::string to_cpp_ns(const std::string& ns);
+
+    void add_decls_to_chai(
+        chaiscript::ChaiScript& script,
+        const gp::FileDescriptor* file,
+        FileWriter& writer
+    );
 
     inline bool is_supported(const gp::FieldDescriptor* field) {
         // TODO: impl

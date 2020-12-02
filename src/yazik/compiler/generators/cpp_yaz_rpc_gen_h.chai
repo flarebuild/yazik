@@ -1,0 +1,119 @@
+def Method::service_name() {
+    return this.service().name();
+}
+
+def Method::write_ctx_tag() {
+    w_cpp_struct("Tag", fun [this]() {
+        wl("static constexpr auto service_name = ::folly::makeFixedString(${q(this.service_name())});")
+        wl("static constexpr auto method_name = ::folly::makeFixedString(${q(this.name())});")
+    })
+}
+
+def Method::write_ctx() {
+    w_cpp_struct("Ctx", fun [this]() {
+        this.write_ctx_tag()
+        wl("static constexpr Tag tag;")
+        wl("using input_ref_t = ${ this.input().cpp_ref_t() };")
+        wl("using output_ref_t = ${ this.output().cpp_ref_t() };")
+        wl("using resp_ok_t = ${cpp_rpc_resp_ok("output_ref_t")};")
+        wl("using output_builder_t = ${ this.output().cpp_layered_builder_t("resp_ok_t") };")
+        wl("${cpp_scheduler} scheduler;")
+        wl("output_builder_t response;")
+        w_cpp_constructor_impl_no_body(
+            [ "inline", "Ctx" ],
+            [ "${cpp_scheduler} scheduler", "output_builder_t response" ], [],
+            [ "scheduler { std::move(scheduler) }", "response { std::move(response) }" ]
+        )
+    })
+}
+
+def Method::concept_templ() {
+    "<Fn, Ctx::input_ref_t, Ctx::output_ref_t, Ctx>"
+}
+
+def Method::write_rpc_concepts() {
+    if (this.is_server_streaming()) {
+        wl("template<typename Fn>")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_ss_sync}${this.concept_templ()};")
+        wl("template<typename Fn>")
+        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_ss_async}${this.concept_templ()};")
+    } else if (this.is_client_streaming()) {
+        wl("template<typename Fn>")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_cs_sync}${this.concept_templ()};")
+        wl("template<typename Fn>")
+        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_cs_async}${this.concept_templ()};")
+    } else {
+        wl("template<typename Fn>")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_unary_sync}${this.concept_templ()};")
+        wl("template<typename Fn>")
+        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_unary_async}${this.concept_templ()};")
+    }
+}
+
+def Method::write_rpc_calls() {
+    w_cpp_struct("SyncCall", fun [this]() {
+        wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_sync() };")
+        wl("using context_t = Ctx;")
+        w_cpp_commented(fun [this] () {
+            w_cpp_fn_impl(
+                [ this.cpp_rpc_call_response_sync(), "call" ],
+                [ "context_t context", "${this.cpp_rpc_call_request_sync()} request"],
+                [ "noexcept" ],
+                fun [this] () {
+                    wl("return ${cpp_rpc_status_unimplemented}")
+                    wl_indent("${this.cpp_rpc_call_cast_as_broken_sts_sync};")
+                }
+            )
+        })
+    })
+    w_cpp_struct("AsyncCall", fun [this]() {
+        wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_async() };")
+        wl("using context_t = Ctx;")
+        w_cpp_commented(fun [this] () {
+            w_cpp_fn_impl(
+                [ this.cpp_rpc_call_response_async(), "call" ],
+                [ "context_t context", "${this.cpp_rpc_call_request_async()} request"],
+                [ "noexcept" ],
+                fun [this] () {
+                    wl("return ${cpp_rpc_status_unimplemented}")
+                    wl_indent("${this.cpp_rpc_call_cast_as_broken_sts_async};")
+                }
+            )
+        })
+    })
+}
+
+def Method::write_definitions() {
+    this.cpp_namespaced(fun [this] () {
+        this.write_ctx()
+        this.write_rpc_concepts()
+        this.write_rpc_calls()
+    })
+}
+
+def Service::write_rpc_methods() {
+    this.cpp_namespaced(fun [this]() {
+        for (method: this.methods()) {
+            method.write_definitions()
+        }
+    })
+}
+
+wl("#pragma once")
+l()
+wl("#include <yazik/compiler/support/rpc_support.hpp>")
+wl("#include <${replace_proto(m.file_name(), "yaz.h")}>")
+l()
+for(dep: m.deps()) {
+    if (dep.has_rpc()) {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.rpc.h")}>")
+    } else {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.h")}>")
+    }
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for (service: m.services()) {
+        service.write_rpc_methods()
+    }
+})

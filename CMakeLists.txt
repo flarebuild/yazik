@@ -24,7 +24,7 @@ set(CMAKE_RANLIB        "${llvm_toolchain_dir}/bin/llvm-ranlib")
 
 add_definitions(-DDEBUG)
 add_definitions(-DGRPC_BAZEL_BUILD)
-add_compile_options(-Wno-ambiguous-reversed-operator)
+add_compile_options(-Wno-ambiguous-reversed-operator -Wno-defaulted-function-deleted)
 
 include(cmake_gen/all_deps.cmake)
 include(cmake_gen/all.cmake)

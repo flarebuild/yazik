@@ -1,0 +1,112 @@
+def Method::write_grpc_ctx() {
+    w_cpp_struct("GrpcCtx: Ctx", fun [this]() {
+        wl("using Ctx::Ctx;")
+        wl("using grpc_service_t = ${this.service().name()}::AsyncService;")
+        var input = this.input()
+        wl("using input_pb_t = ${input.cpp_pb_t()};")
+        wl("using input_pb_spec_t = ${input.cpp_pb_spec_t()};")
+        wl("using input_pb_builder_spec_t = ${input.cpp_builder_pb_spec_t()};")
+        var output = this.output()
+        wl("using output_pb_t = ${output.cpp_pb_t()};")
+        wl("using output_pb_spec_t = ${output.cpp_pb_spec_t()};")
+        wl("using output_pb_builder_spec_t = ${output.cpp_builder_pb_spec_t()};")
+    })
+}
+
+def Method::payload_name() {
+    if (this.is_server_streaming()) {
+        return "ServerStreaming"
+    } else if (this.is_client_streaming()) {
+        return "ClientStreaming"
+    } else {
+        return "Unary"
+    }
+}
+
+def Method::write_grpc_handles() {
+    wl("template <c_sync_unit Unit = class SyncUnit>")
+    w_cpp_struct("SyncGrpcHandle", fun [this]() {
+        wl("using payload_t = ::yazik::compiler::grpc_support::${this.payload_name()}PayloadSync<GrpcCtx, Unit>;")
+        wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;")
+        wl("using service_t = GrpcCtx::grpc_service_t;")
+        wl("Unit unit;")
+        w_cpp_constructor_impl_no_body(
+            [ "SyncGrpcHandle" ],
+            [ "Unit unit" ],
+            [ "noexcept" ],
+            [ "unit { std::move(unit) }" ]
+        )
+        w_cpp_fn_impl(
+            [ "static", "::yazik::OneWayTask", "spawn"],
+            [ "Unit unit", "GrpcCtx::grpc_service_t* service", "const scheduler_ptr_t& scheduler" ], [],
+            fun [this] () {
+                wl("auto payload = payload_t { scheduler };")
+                wl("co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
+                wl("spawn(unit, service, scheduler);")
+                wl("co_await payload.run(unit);")
+                wl("co_return;")
+            }
+        )
+    })
+
+    wl("template <c_async_unit Unit = class AsyncUnit>")
+    w_cpp_struct("AsyncGrpcHandle", fun [this]() {
+        wl("using payload_t = ::yazik::compiler::grpc_support::${this.payload_name()}PayloadSync<GrpcCtx, Unit>;")
+        wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;")
+        wl("using service_t = GrpcCtx::grpc_service_t;")
+        wl("Unit unit;")
+        w_cpp_constructor_impl_no_body(
+            [ "AsyncGrpcHandle" ],
+            [ "Unit unit" ],
+            [ "noexcept" ],
+            [ "unit { std::move(unit) }" ]
+        )
+        w_cpp_fn_impl(
+            [ "static", "::yazik::OneWayTask", "spawn"],
+            [ "Unit unit", "GrpcCtx::grpc_service_t* service", "const scheduler_ptr_t& scheduler" ], [],
+            fun [this] () {
+                wl("auto payload = payload_t { scheduler };")
+                wl("co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
+                wl("spawn(unit, service, scheduler);")
+                wl("co_await payload.run(unit);")
+                wl("co_return;")
+            }
+        )
+    })
+}
+
+def Method::write_definitions() {
+    this.cpp_namespaced(fun [this] () {
+        this.write_grpc_ctx()
+        this.write_grpc_handles()
+    })
+}
+
+def Service::write_rpc_methods() {
+    this.cpp_namespaced(fun [this]() {
+        for (method: this.methods()) {
+            method.write_definitions()
+        }
+    })
+}
+
+wl("#pragma once")
+l()
+wl("#include <yazik/compiler/support/grpc_support.hpp>")
+wl("#include <${replace_proto(m.file_name(), "yaz.rpc.h")}>")
+wl("#include <${replace_proto(m.file_name(), "yaz.pb.h")}>")
+wl("#include <${replace_proto(m.file_name(), "grpc.pb.h")}>")
+l()
+for(dep: m.deps()) {
+    if (dep.has_rpc()) {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.grpc.h")}>")
+    } else {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.pb.h")}>")
+    }
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for (service: m.services()) {
+        service.write_rpc_methods()
+    }
+})

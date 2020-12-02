@@ -3,6 +3,7 @@
 #include <range/v3/view.hpp>
 #include <string_view>
 #include <yazik/utility/concepts.hpp>
+#include <yazik/utility/utility_defs.hpp>
 #include <folly/FBVector.h>
 #include <folly/Function.h>
 #include <folly/Unit.h>
@@ -26,32 +27,32 @@ namespace yazik::compiler::support {
         template<typename Entity>
         static inline Entity create_entity(
             void* ptr,
-            const typename Entity::Vtable* vtable
+            const typename Entity::vtable_t* vtable
         ) noexcept {
             return { ptr, vtable };
         }
 
-        template<typename Builder, typename ArgPack>
-        static inline Builder create_builder(ArgPack&& pack) noexcept {
-            return create_builder_detail<Builder>(
-                std::forward<ArgPack>(pack),
-                std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<ArgPack>>>{}
-            );
-        }
-
-        template<typename Builder, typename ArgPack, typename Parent>
-        static inline Builder create_builder_with_parent(ArgPack&& pack, Parent* parent) noexcept {
-            auto repack = std::tuple_cat(std::forward<ArgPack>(pack), std::make_tuple(parent));
-            auto result = create_builder<Builder>(std::move(repack));
-            return result;
+        template<typename Builder, typename... Args>
+        static inline Builder create_builder(Args... args) noexcept {
+            return { std::forward<Args>(args)... };
         }
 
     };
 
+    template <typename T>
+    using repeated_type_t = ::ranges::any_view<
+        T, ::ranges::category::random_access | ::ranges::category::sized
+    >;
+
+
+    template<typename T, typename Parent>
+    class VecLayeredBuilder;
+
     template<typename T>
-    class VecBuilder {
+    class VecBuilder: protected Initializer {
     public:
         using push_clbk_t = void (*)(void*, T);
+        using value_t = T;
     protected:
         void* _ptr;
         push_clbk_t _pusher;
@@ -69,6 +70,8 @@ namespace yazik::compiler::support {
             _pusher(_ptr, std::move(value));
         }
 
+        template<typename Parent>
+        VecLayeredBuilder<T, Parent> layered(Parent* parent);
     };
 
     template<typename T, typename Parent>
@@ -101,10 +104,23 @@ namespace yazik::compiler::support {
         }
     };
 
-    template<
-        typename Builder,
-        typename Vtable = typename Builder::Vtable
-    > class VecEntityBuilder: protected Initializer {
+    template<typename T>
+    template<typename Parent>
+    VecLayeredBuilder<T, Parent> VecBuilder<T>::layered(Parent* parent) {
+        using Layered = VecLayeredBuilder<T, Parent>;
+        return this->template create_builder<Layered>(
+            this->_ptr,
+            this->_pusher,
+            parent
+        );
+    }
+
+    template<template<class> typename Builder, typename Parent>
+    class VecEntityLayeredBuilder;
+
+    template<typename Builder>
+    class VecEntityBuilder: protected Initializer {
+        using Vtable = typename Builder::vtable_t;
     public:
         using builder_factory_t = void* (*)(void*);
     protected:
@@ -127,55 +143,67 @@ namespace yazik::compiler::support {
     public:
 
         inline void push_back(::folly::Function<void(Builder&)> clbk) {
-            auto builder = this->create_builder<Builder>(std::make_tuple(
+            auto builder = this->create_builder<Builder>(
                 this->_builder_factory(this->_ptr),
                 _vtable
-            ));
+            );
             clbk(builder);
         }
+
+        template<typename Parent>
+        VecEntityLayeredBuilder<Builder::template layered_t, Parent> layered(Parent* parent);
     };
 
-    template<
-        template <class> typename Builder,
-        typename BaseBuilder,
-        typename Parent
-    > class VecEntityLayeredBuilder final
-    : public VecEntityBuilder<BaseBuilder, typename BaseBuilder::Vtable> {
-        using Self = VecEntityLayeredBuilder<Builder, BaseBuilder, Parent>;
-        using LayeredBuilder = Builder<Self>;
-        using Base = VecEntityBuilder<BaseBuilder, typename BaseBuilder::Vtable>;
+    template<template<class> typename Builder, typename Parent>
+    class VecEntityLayeredBuilder final
+    : public VecEntityBuilder<
+        typename Builder<VecEntityLayeredBuilder<Builder, Parent>>::base_builder_t
+    > {
+        using Self = VecEntityLayeredBuilder<Builder, Parent>;
+        using BaseBuilder = typename Builder<VecEntityLayeredBuilder<Builder, Parent>>::base_builder_t;
+        using Base = VecEntityBuilder<BaseBuilder>;
 
-        Parent _parent;
+        Parent* _parent;
 
     public:
 
         VecEntityLayeredBuilder(
             void* ptr,
             typename Base::builder_factory_t factory,
-            const typename BaseBuilder::Vtable* vtable,
+            const typename BaseBuilder::vtable_t* vtable,
             Parent* parent
         )
         : Base { ptr, factory, vtable }
-        , _parent { std::move(*parent) }
+        , _parent { parent }
         {}
 
         friend class Initializer;
 
-
-        inline LayeredBuilder push() {
-            return Base::template create_builder_with_parent<LayeredBuilder>(
-                std::make_tuple(
-                    this->_builder_factory(this->_ptr),
-                    this->_vtable
-                ),
+        inline Builder<Self> push() {
+            return Base::template create_builder<Builder<Self>>(
+                this->_builder_factory(this->_ptr),
+                this->_vtable,
                 this
             );
         }
 
         inline Parent done() {
-            return std::move(this->_parent);
+            return std::move(*this->_parent);
         }
 
     };
+
+    template<typename Builder>
+    template<typename Parent>
+    VecEntityLayeredBuilder<Builder::template layered_t, Parent>
+    VecEntityBuilder<Builder>::layered(Parent* parent) {
+        using Layered = VecEntityLayeredBuilder<Builder::template layered_t, Parent>;
+        return this->template create_builder<Layered>(
+            this->_ptr,
+            this->_builder_factory,
+            this->_vtable,
+            parent
+        );
+    }
 
 } //end of yazik::compiler::support namespace

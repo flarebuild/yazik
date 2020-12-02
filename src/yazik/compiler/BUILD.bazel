@@ -14,9 +14,13 @@ cc.library(
         "utility/**/*.cpp",
         "generators/**/*.cpp",
     ]),
+    data = glob([
+        "**/*.chai",
+    ]),
     deps = [
         "//src/yazik/utility",
         "//src/yazik/compiler/support:rpc_support",
+        "@com_github_chaiscript_chaiscript//:chaiscript",
         "@com_google_protobuf//:protoc_lib",
         "@com_github_grpc_grpc//src/compiler:grpc_plugin_support",
     ],
