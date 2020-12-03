@@ -50,7 +50,7 @@ namespace yazik::compiler::grpc_support {
                 co_return;
 
             auto sts = rpc::RpcStatus::cancelled();
-            on_finish(unit, _ctx, sts);
+            on_finish(unit, sts);
             co_await sts.as_broken_task();
         }
 
@@ -135,7 +135,6 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> pre_run(Unit& unit, auto& request) noexcept {
-            Base::on_start(unit);
             auto identify_res = co_await Base::identify(unit, request).wrapped();
             if (!identify_res) {
                 co_await finish(unit, identify_res.error());
@@ -145,6 +144,7 @@ namespace yazik::compiler::grpc_support {
                     Base::s_handle_id.c_str()
                 ));
             }
+            Base::on_start(unit);
             co_return;
         }
     };
@@ -207,7 +207,7 @@ namespace yazik::compiler::grpc_support {
         , _responder { &this->_grpc_ctx }
         {}
 
-        using request_fn_t = void (Ctx::service_t::*)(
+        using request_fn_t = void (Ctx::grpc_service_t::*)(
             ::grpc::ServerContext*,
             typename Ctx::input_pb_t*,
             ::grpc::ServerAsyncWriter<typename Ctx::output_pb_t>*,
@@ -263,16 +263,16 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> pre_run(Unit& unit, auto& request) noexcept {
-            Base::on_start(unit);
             auto identify_res = co_await Base::identify(unit, request).wrapped();
             if (!identify_res) {
-                co_await finish(unit, identify_res.error());
+                co_await finish(unit, identify_res.error(), false);
                 co_await identify_res;
             } else {
                 co_await Base::_scheduler->ensure_on($yaz_debug(
                     Base::s_handle_id.c_str()
                 ));
             }
+            Base::on_start(unit);
             co_return;
         }
     };
@@ -319,8 +319,8 @@ namespace yazik::compiler::grpc_support {
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
             }
-            if (!async_stream.status.is_ok())
-                co_await async_stream.status.as_broken_task();
+            if (!async_stream.status().is_ok())
+                co_await async_stream.status().as_broken_task();
 
             co_return;
         }
@@ -339,9 +339,9 @@ namespace yazik::compiler::grpc_support {
                     co_await Base::finish(unit, result->error(), false);
                 }
             } else {
-                auto process_stream_res = process_async_stream(unit, std::move(async_stream));
+                auto process_stream_res = co_await process_async_stream(unit, std::move(async_stream)).wrapped();
                 if (!process_stream_res) {
-                    co_await Base::finish(unit, process_stream_res->error(), false);
+                    co_await Base::finish(unit, process_stream_res.error(), false);
                 } else {
                     co_await Base::finish(unit, rpc::RpcStatus::ok(), false);
                 }
@@ -366,7 +366,7 @@ namespace yazik::compiler::grpc_support {
         , _responder { &this->_grpc_ctx }
         {}
 
-        using request_fn_t = void (Ctx::service_t::*)(
+        using request_fn_t = void (Ctx::grpc_service_t::*)(
             ::grpc::ServerContext*,
             ::grpc::ServerAsyncReader<typename Ctx::output_pb_t, typename Ctx::input_pb_t>*,
             ::grpc::CompletionQueue*,
@@ -414,16 +414,16 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> pre_run(Unit& unit, auto& request) noexcept {
-            Base::on_start(unit);
             auto identify_res = co_await Base::identify(unit, request).wrapped();
             if (!identify_res) {
-                co_await finish(unit, Base::_ctx, identify_res.error());
+                co_await finish(unit, identify_res.error());
                 co_await identify_res;
             } else {
                 co_await Base::_scheduler->ensure_on($yaz_debug(
                     Base::s_handle_id.c_str()
                 ));
             }
+            Base::on_start(unit);
             co_return;
         }
 
@@ -435,7 +435,7 @@ namespace yazik::compiler::grpc_support {
                 ));
                 _responder.Read(&_request_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
-                co_yield typename Ctx::input_pb_spec_t::wrap(_request_pb);
+                co_yield Ctx::input_pb_spec_t::wrap(_request_pb);
             }
             co_return;
         }
@@ -452,7 +452,7 @@ namespace yazik::compiler::grpc_support {
             vector<typename Ctx::input_pb_t> result;
             for co_await(auto ref: request) {
                 request.emplace_back();
-                typename Ctx::input_pb_builder_spec_t::wrap(request.back())
+                Ctx::input_pb_builder_spec_t::wrap(request.back())
                     .move_initialize_from(std::move(ref));
             }
             if (!request.status().is_ok())
@@ -465,7 +465,7 @@ namespace yazik::compiler::grpc_support {
             vector<typename Ctx::input_pb_t>&& data
         ) {
             for (auto& req: data)
-                co_yield typename Ctx::input_pb_spec_t::wrap(req);
+                co_yield Ctx::input_pb_spec_t::wrap(req);
             co_return;
         }
 
@@ -473,7 +473,7 @@ namespace yazik::compiler::grpc_support {
         using Base::Base;
 
         rpc::RpcTask<> run(Unit& unit) noexcept {
-            auto request = create_request_stream(unit);
+            auto request = this->create_request_stream(unit);
             co_await Base::pre_run(unit, request);
             auto stream_to_vector_res = stream_to_vector(std::move(request)).wrapped();
             if (!stream_to_vector_res) {
@@ -502,7 +502,7 @@ namespace yazik::compiler::grpc_support {
         using Base::Base;
 
         rpc::RpcTask<> run(Unit& unit) noexcept {
-            auto request = create_request_stream(unit);
+            auto request = this->create_request_stream(unit);
             co_await Base::pre_run(unit, request);
             auto unit_res = co_await Base::call_unit(unit, std::move(request)).wrapped();
             if (!unit_res) {

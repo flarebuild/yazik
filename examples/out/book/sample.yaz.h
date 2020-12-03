@@ -2,7 +2,7 @@
 
 #include <yazik/compiler/support/support.hpp>
 
-namespace com::book {
+namespace com::book::yaz {
     namespace can_recommend {
         class Enum;
     }
@@ -624,7 +624,7 @@ namespace com::book {
             Self& isbn(int64_t);
             Self& title(std::string);
             author::LayeredBuilder<Self> author();
-            ::yazik::compiler::support::VecEntityLayeredBuilder<book::page::Builder::layered_t, Self> pages();
+            ::yazik::compiler::support::VecEntityLayeredBuilder<book::page::LayeredBuilder, Self> pages();
             Self& availability(book::availability::Enum);
             Self& recommended(can_recommend::Enum);
             Self& move_from(book::Ref&&);
@@ -1177,8 +1177,8 @@ namespace com::book {
             return _vtable->construct_author_builder(_ptr).layered(this);
         }
         template <typename Parent>
-        auto LayeredBuilder<Parent>::pages() -> ::yazik::compiler::support::VecEntityLayeredBuilder<book::page::Builder::layered_t, Self> {
-            return _vtable->construct_pages_builder(_ptr).layered(this);
+        auto LayeredBuilder<Parent>::pages() -> ::yazik::compiler::support::VecEntityLayeredBuilder<book::page::LayeredBuilder, Self> {
+            return _vtable->construct_pages_builder(_ptr).template layered<book::page::LayeredBuilder>(this);
         }
         template <typename Parent>
         auto LayeredBuilder<Parent>::availability(book::availability::Enum value) -> Self& {

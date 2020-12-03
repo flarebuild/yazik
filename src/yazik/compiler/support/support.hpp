@@ -150,8 +150,8 @@ namespace yazik::compiler::support {
             clbk(builder);
         }
 
-        template<typename Parent>
-        VecEntityLayeredBuilder<Builder::template layered_t, Parent> layered(Parent* parent);
+        template<template<class> typename Layered, typename Parent>
+        VecEntityLayeredBuilder<Layered, Parent> layered(Parent* parent);
     };
 
     template<template<class> typename Builder, typename Parent>
@@ -194,11 +194,10 @@ namespace yazik::compiler::support {
     };
 
     template<typename Builder>
-    template<typename Parent>
-    VecEntityLayeredBuilder<Builder::template layered_t, Parent>
+    template<template<class> typename Layered, typename Parent>
+    VecEntityLayeredBuilder<Layered, Parent>
     VecEntityBuilder<Builder>::layered(Parent* parent) {
-        using Layered = VecEntityLayeredBuilder<Builder::template layered_t, Parent>;
-        return this->template create_builder<Layered>(
+        return this->template create_builder<VecEntityLayeredBuilder<Layered, Parent>>(
             this->_ptr,
             this->_builder_factory,
             this->_vtable,

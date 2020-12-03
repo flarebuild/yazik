@@ -34,30 +34,33 @@ def Method::concept_templ() {
 def Method::write_rpc_concepts() {
     if (this.is_server_streaming()) {
         wl("template<typename Fn>")
-        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_ss_sync}${this.concept_templ()};")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_ss_sync}${this.concept_templ()};")
         wl("template<typename Fn>")
-        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_ss_async}${this.concept_templ()};")
+        wl("concept c_async_unit = ${cpp_rpc_concept_ss_async}${this.concept_templ()};")
     } else if (this.is_client_streaming()) {
         wl("template<typename Fn>")
-        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_cs_sync}${this.concept_templ()};")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_cs_sync}${this.concept_templ()};")
         wl("template<typename Fn>")
-        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_cs_async}${this.concept_templ()};")
+        wl("concept c_async_unit = ${cpp_rpc_concept_cs_async}${this.concept_templ()};")
     } else {
         wl("template<typename Fn>")
-        wl("concept c_sync_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_unary_sync}${this.concept_templ()};")
+        wl("concept c_sync_unit = ${cpp_rpc_concept_unary_sync}${this.concept_templ()};")
         wl("template<typename Fn>")
-        wl("concept c_async_unit = ${cpp_rpc_concept_pref}${cpp_rpc_concept_unary_async}${this.concept_templ()};")
+        wl("concept c_async_unit = ${cpp_rpc_concept_unary_async}${this.concept_templ()};")
     }
+    wl("template<typename Fn>")
+    wl("concept c_unit = ${cpp_rpc_concept_pref} c_sync_unit<Fn> || c_async_unit<Fn>;")
 }
 
 def Method::write_rpc_calls() {
     w_cpp_struct("SyncCall", fun [this]() {
         wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_sync() };")
         wl("using context_t = Ctx;")
+        wl("using request_t = ${this.cpp_rpc_call_request_sync()};")
         w_cpp_commented(fun [this] () {
             w_cpp_fn_impl(
                 [ this.cpp_rpc_call_response_sync(), "call" ],
-                [ "context_t context", "${this.cpp_rpc_call_request_sync()} request"],
+                [ "context_t& context", "${this.cpp_rpc_call_request_sync()} request"],
                 [ "noexcept" ],
                 fun [this] () {
                     wl("return ${cpp_rpc_status_unimplemented}")
@@ -69,10 +72,11 @@ def Method::write_rpc_calls() {
     w_cpp_struct("AsyncCall", fun [this]() {
         wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_async() };")
         wl("using context_t = Ctx;")
+        wl("using request_t = ${this.cpp_rpc_call_request_async()};")
         w_cpp_commented(fun [this] () {
             w_cpp_fn_impl(
                 [ this.cpp_rpc_call_response_async(), "call" ],
-                [ "context_t context", "${this.cpp_rpc_call_request_async()} request"],
+                [ "context_t& context", "${this.cpp_rpc_call_request_async()} request"],
                 [ "noexcept" ],
                 fun [this] () {
                     wl("return ${cpp_rpc_status_unimplemented}")

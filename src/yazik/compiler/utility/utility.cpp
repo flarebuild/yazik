@@ -66,7 +66,7 @@ namespace yazik::compiler {
     std::string descriptable_ns(T* d, const gp::FileDescriptor* f) {
         std::string pref;
         if (d->file() != f)
-            pref = do_sformat("{}::", to_cpp_ns(d->file()->package()));
+            pref = do_sformat("{}::yaz::", to_cpp_ns(d->file()->package()));
 
         std::string result;
         if (auto* parent = d->containing_type()) {
@@ -417,6 +417,7 @@ namespace yazik::compiler {
         std::string resolve_cpp_builder_t_in_variant() const;
         std::string resolve_cpp_builder_t_in_message() const;
         std::string resolve_cpp_layered_builder_t() const;
+        std::string resolve_cpp_layered_inner_builder_t() const;
         static void add_to_chai(chaiscript::ChaiScript& script);
     };
 
@@ -591,15 +592,9 @@ namespace yazik::compiler {
 
         std::string cpp_rpc_call_response_sync() const {
             if (is_server_streaming())
-                return do_sformat(
-                    "::yazik::rpc::RpcGenerator<RespOk<{}>>",
-                    output().cpp_ref_t()
-                );
+                return "::yazik::rpc::RpcGenerator<contenx_t::resp_ok_t>";
             else
-                return do_sformat(
-                    "::yazik::rpc::RpcResult<RespOk<{}>>",
-                    output().cpp_ref_t()
-                );
+                return "::yazik::rpc::RpcResult<contenx_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_cast_as_broken_sts_sync() const {
@@ -609,7 +604,7 @@ namespace yazik::compiler {
         std::string cpp_rpc_call_request_sync() const {
             if (is_client_streaming())
                 return do_sformat(
-                    "::yazik::rpc::RpcGenerator<RespOk<{}>>",
+                    "::yazik::rpc::RpcGenerator<{}>",
                     input().cpp_ref_t()
                 );
             else
@@ -628,15 +623,9 @@ namespace yazik::compiler {
 
         std::string cpp_rpc_call_response_async() const {
             if (is_server_streaming())
-                return do_sformat(
-                    "::yazik::rpc::RpcChannel<RespOk<{}>>",
-                    output().cpp_ref_t()
-                );
+                return "::yazik::rpc::RpcChannel<contenx_t::resp_ok_t>";
             else
-                return do_sformat(
-                    "::yazik::rpc::RpcTask<RespOk<{}>>",
-                    output().cpp_ref_t()
-                );
+                return "::yazik::rpc::RpcTask<contenx_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_cast_as_broken_sts_async() const {
@@ -649,7 +638,7 @@ namespace yazik::compiler {
         std::string cpp_rpc_call_request_async() const {
             if (is_client_streaming())
                 return do_sformat(
-                    "::yazik::rpc::RpcChannel<RespOk<{}>>",
+                    "::yazik::rpc::RpcChannel<{}>",
                     input().cpp_ref_t()
                 );
             else
@@ -739,8 +728,13 @@ namespace yazik::compiler {
         }
 
         void cpp_namespaced(std::function<void ()> fn) const {
-            if (_descriptor->package().empty()) fn();
-            else _writer->w("namespace {} ", to_cpp_ns(_descriptor->package()))
+            std::string ns;
+            if (!_descriptor->package().empty()) {
+                ns = do_sformat("{}::yaz", to_cpp_ns(_descriptor->package()));
+            } else {
+                ns = "yaz";
+            }
+            _writer->w("namespace {} ", ns)
                 .braced(fn);
         }
 
@@ -817,8 +811,8 @@ namespace yazik::compiler {
             if (is_repeated()) {
                 auto message = as_message();
                 return do_sformat(
-                    "::yazik::compiler::support::VecEntityLayeredBuilder<{}::layered_t, Self>",
-                    message.cpp_builder_t()
+                    "::yazik::compiler::support::VecEntityLayeredBuilder<{}, Self>",
+                    message.cpp_layered_builder_t("")
                 );
             } else {
                 return as_message().cpp_layered_builder_t("Self");
@@ -831,6 +825,18 @@ namespace yazik::compiler {
         }
         throw runtime_fail(
             "layered builder not supported for: {}",
+            _descriptor->DebugString()
+        );
+    }
+
+    std::string FieldDescriptorWrap::resolve_cpp_layered_inner_builder_t() const {
+        if (is_message()) {
+            return as_message().cpp_layered_builder_t("");
+        } else if (is_repeated()) {
+            return resolve_cpp_builder_t_inner();
+        }
+        throw runtime_fail(
+            "layered inner builder not supported for: {}",
             _descriptor->DebugString()
         );
     }
@@ -848,10 +854,10 @@ namespace yazik::compiler {
             result = as_enum().cpp_t();
             break;
         case gpfd::TYPE_STRING:
-            result = "std::string_view";
+            result = "::yazik::string_view";
             break;
         case gpfd::TYPE_BYTES:
-            result = "std::string_view";
+            result = "::yazik::string_view";
             break;
         default:
             result = resolve_cpp_type_common();
@@ -890,7 +896,7 @@ namespace yazik::compiler {
                 std::string enum_type = as_enum().cpp_t();
                 w.w("| ::ranges::views::transform([](int x) ")
                     .braced_detail([&] {
-                        w.wl("return create_enum<{}Enum>((int)x);", enum_type);
+                        w.wl("return create_enum<{}>((int)x);", enum_type);
                     }, false)
                     .wl(");");
             });
@@ -900,7 +906,7 @@ namespace yazik::compiler {
             w.l().with_indent([&] {
                 w.w("| ::ranges::views::transform([](const auto& x) ")
                     .braced_detail([&] {
-                        w.wl("return std::string_view {{ x }};");
+                        w.wl("return ::yazik::string_view {{ x }};");
                     }, false)
                     .wl(");");
             });
@@ -983,11 +989,20 @@ namespace yazik::compiler {
                         w.wl("p,");
                         w.w("[](void* ptr, auto value) ", builder);
                         w.braced([&]{
-                            w.wl(
-                                "(({}*)ptr)->add_{}(std::move(value));",
-                                parent().cpp_pb_t(),
-                                getter
-                            );
+                            if (is_enum()) {
+                                w.wl(
+                                    "(({}*)ptr)->add_{}(({})value.which());",
+                                    parent().cpp_pb_t(),
+                                    getter,
+                                    as_enum().cpp_pb_t()
+                                );
+                            } else {
+                                w.wl(
+                                    "(({}*)ptr)->add_{}(std::move(value));",
+                                    parent().cpp_pb_t(),
+                                    getter
+                                );
+                            }
                         });
                     },
                     false, "(", ")"
@@ -1103,12 +1118,14 @@ namespace yazik::compiler {
                 ChaiMemberFn(resolve_cpp_builder_t_in_variant),
                 ChaiMemberFn(resolve_cpp_builder_t_in_message),
                 ChaiMemberFn(resolve_cpp_layered_builder_t),
+                ChaiMemberFn(resolve_cpp_layered_inner_builder_t),
                 ChaiMemberFn(cpp_unwrap_in_variant),
                 ChaiMemberFn(cpp_unwrap_in_message),
                 ChaiMemberFn(cpp_unwrap_builder_in_variant),
                 ChaiMemberFn(cpp_unwrap_builder_in_message),
                 ChaiMemberFn(is_repeated),
                 ChaiMemberFn(is_message),
+                ChaiMemberFn(as_message),
                 ChaiMemberFn(is_variant),
             }
         );
@@ -1265,7 +1282,7 @@ namespace yazik::compiler {
             "cpp_deserialized_buffer"
         );
         script.add_global_const(
-            const_var(std::string{"!boost::di::aux::is_complete<Fn>::value\n    || "}),
+            const_var(std::string{"!boost::di::aux::is_complete<Fn>::value || "}),
             "cpp_rpc_concept_pref"
         );
         script.add_global_const(

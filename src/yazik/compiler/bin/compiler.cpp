@@ -5,10 +5,23 @@
 #include <yazik/compiler/generators/cpp_gen.hpp>
 #include <yazik/compiler/generators/cpp_rpc_gen.hpp>
 
+#include "tools/cpp/runfiles/runfiles.h"
+
 using namespace yazik;
 using namespace yazik::compiler;
 
-int main(int argc, char* argv[]) {
+using ::bazel::tools::cpp::runfiles::Runfiles;
+
+int main(int argc, char* argv[], char **envp) {
+
+    std::string error;
+    std::unique_ptr<Runfiles> runfiles(Runfiles::Create(argv[0], &error));
+
+    if (!error.empty()) {
+        std::cout << error << std::endl;
+        return 1;
+    }
+
     auto cli = gpc::CommandLineInterface {};
     cli.AllowPlugins("protoc-");
 
@@ -20,7 +33,7 @@ int main(int argc, char* argv[]) {
         "Generate C++ header and source."
     );
 
-    auto yaz_cpp_gen = create_cpp_generator();
+    auto yaz_cpp_gen = create_cpp_generator(runfiles.get());
     cli.RegisterGenerator(
         "--yaz_cpp_out",
         "--yaz_cpp_opt",
@@ -28,7 +41,7 @@ int main(int argc, char* argv[]) {
         "Generate yazik cpp wrappers"
     );
 
-    auto yaz_cpp_rpc_gen = create_cpp_rpc_generator();
+    auto yaz_cpp_rpc_gen = create_cpp_rpc_generator(runfiles.get());
     cli.RegisterGenerator(
         "--yaz_grpc_cpp_out",
         "--yaz_grpc_cpp_opt",

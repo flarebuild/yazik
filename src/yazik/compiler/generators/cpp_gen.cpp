@@ -6,10 +6,12 @@
 
 namespace yazik::compiler {
 
-    using namespace ranges;
+    using ::bazel::tools::cpp::runfiles::Runfiles;
 
     class CppGenerator final
     : public Generator {
+
+        Runfiles* _rf;
 
         Result<bool> generate(
             const gp::FileDescriptor* file,
@@ -20,30 +22,50 @@ namespace yazik::compiler {
                 chaiscript::ChaiScript script;
                 FileWriter w{ file, generator_context, "yaz.h"};
                 add_decls_to_chai(script, file, w);
-                script.eval_file("src/yazik/compiler/generators/cpp_yaz_gen_h.chai");
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_gen_h.chai"
+                );
+                std::cout << script_loc << std::endl;
+                script.eval_file(script_loc);
             } {
                 chaiscript::ChaiScript script;
                 FileWriter w{ file, generator_context, "yaz.cc"};
                 add_decls_to_chai(script, file, w);
-                script.eval_file("src/yazik/compiler/generators/cpp_yaz_gen_cpp.chai");
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_gen_cpp.chai"
+                );
+                script.eval_file(script_loc);
             } {
                 chaiscript::ChaiScript script;
                 FileWriter w{ file, generator_context, "yaz.pb.h"};
                 add_decls_to_chai(script, file, w);
-                script.eval_file("src/yazik/compiler/generators/cpp_yaz_pb_gen_h.chai");
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_pb_gen_h.chai"
+                );
+                script.eval_file(script_loc);
             } {
                 chaiscript::ChaiScript script;
                 FileWriter w{ file, generator_context, "yaz.pb.cc"};
                 add_decls_to_chai(script, file, w);
-                script.eval_file("src/yazik/compiler/generators/cpp_yaz_pb_gen_cpp.chai");
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_pb_gen_cpp.chai"
+                );
+                script.eval_file(script_loc);
             }
 
             co_return true;
         }
+
+    public:
+
+        CppGenerator(Runfiles* rf)
+        : _rf { rf }
+        {}
+
     };
 
-    generator_ptr_t create_cpp_generator() {
-        return std::make_shared<CppGenerator>();
+    generator_ptr_t create_cpp_generator(Runfiles* rf) {
+        return std::make_shared<CppGenerator>(rf);
     }
 
 } // end of ::yazik::compiler namespace

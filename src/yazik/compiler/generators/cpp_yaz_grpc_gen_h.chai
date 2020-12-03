@@ -24,39 +24,19 @@ def Method::payload_name() {
 }
 
 def Method::write_grpc_handles() {
-    wl("template <c_sync_unit Unit = class SyncUnit>")
-    w_cpp_struct("SyncGrpcHandle", fun [this]() {
-        wl("using payload_t = ::yazik::compiler::grpc_support::${this.payload_name()}PayloadSync<GrpcCtx, Unit>;")
-        wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;")
-        wl("using service_t = GrpcCtx::grpc_service_t;")
-        wl("Unit unit;")
-        w_cpp_constructor_impl_no_body(
-            [ "SyncGrpcHandle" ],
-            [ "Unit unit" ],
-            [ "noexcept" ],
-            [ "unit { std::move(unit) }" ]
-        )
-        w_cpp_fn_impl(
-            [ "static", "::yazik::OneWayTask", "spawn"],
-            [ "Unit unit", "GrpcCtx::grpc_service_t* service", "const scheduler_ptr_t& scheduler" ], [],
-            fun [this] () {
-                wl("auto payload = payload_t { scheduler };")
-                wl("co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
-                wl("spawn(unit, service, scheduler);")
-                wl("co_await payload.run(unit);")
-                wl("co_return;")
-            }
-        )
-    })
+    wl("template <c_unit Unit = class UnitTag>")
+    w_cpp_struct("GrpcHandle", fun [this]() {
+        wl("using payload_t = std::conditional_t<")
+            wl_indent("c_sync_unit<Unit>,")
+            wl_indent("::yazik::compiler::grpc_support::${this.payload_name()}PayloadSync<GrpcCtx, Unit>,")
+            wl_indent("::yazik::compiler::grpc_support::${this.payload_name()}PayloadAsync<GrpcCtx, Unit>")
+        wl(">;")
 
-    wl("template <c_async_unit Unit = class AsyncUnit>")
-    w_cpp_struct("AsyncGrpcHandle", fun [this]() {
-        wl("using payload_t = ::yazik::compiler::grpc_support::${this.payload_name()}PayloadSync<GrpcCtx, Unit>;")
         wl("using scheduler_ptr_t = ::yazik::rpc::grpc::server_queue_thread_scheduler_ptr_t;")
         wl("using service_t = GrpcCtx::grpc_service_t;")
         wl("Unit unit;")
         w_cpp_constructor_impl_no_body(
-            [ "AsyncGrpcHandle" ],
+            [ "GrpcHandle" ],
             [ "Unit unit" ],
             [ "noexcept" ],
             [ "unit { std::move(unit) }" ]
@@ -68,7 +48,7 @@ def Method::write_grpc_handles() {
                 wl("auto payload = payload_t { scheduler };")
                 wl("co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
                 wl("spawn(unit, service, scheduler);")
-                wl("co_await payload.run(unit);")
+                wl("co_await payload.run(unit).wrapped();")
                 wl("co_return;")
             }
         )

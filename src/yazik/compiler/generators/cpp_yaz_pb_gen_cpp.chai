@@ -254,6 +254,10 @@ def Message::define() {
 
 wl("#include <${replace_proto(m.file_name(), "yaz.pb.h")}>")
 l()
+for(dep: m.deps()) {
+    wl("#include <${replace_proto(dep.file_name(), "yaz.pb.h")}>")
+}
+if (m.has_deps()) { l() }
 m.cpp_namespaced(fun () {
     for(message: m.messages()) { message.define() }
 })

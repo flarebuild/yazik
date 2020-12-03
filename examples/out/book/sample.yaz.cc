@@ -1,6 +1,6 @@
 #include <book/sample.yaz.h>
 
-namespace com::book {
+namespace com::book::yaz {
     namespace can_recommend {
         Enum::Enum(int value): _value{value} {}
         bool Enum::is_yep() const noexcept {

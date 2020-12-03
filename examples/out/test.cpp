@@ -6,6 +6,7 @@
 #include <yazik/rpc/grpc/grpc_runtime.hpp>
 
 using namespace ::com::book;
+using namespace ::com::book::yaz;
 using namespace ::yazik;
 using namespace ::yazik::compiler::support;
 
@@ -201,7 +202,7 @@ int main() {
         rpc::grpc::Runtime runtime;
         auto& worker = runtime.add_worker();
         static_assert(book_service::get_book::c_sync_unit<SyncCallSample>);
-        worker->spawn<book_service::get_book::SyncGrpcHandle>(SyncCallSample{});
+        worker->spawn<book_service::get_book::GrpcHandle>(SyncCallSample{});
         runtime.start().wait();
     }
     return 0;

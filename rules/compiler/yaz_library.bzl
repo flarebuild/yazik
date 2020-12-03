@@ -1,4 +1,5 @@
 load(":run_proto_compiler.bzl", "run_proto_compiler")
+load("//rules:cc.bzl", "cc")
 
 _s_cc_proto_exts = [
     ".pb.h",
@@ -7,7 +8,9 @@ _s_cc_proto_exts = [
 
 _s_cc_proto_yaz_exts = [
     ".yaz.h",
+    ".yaz.cc",
     ".yaz.pb.h",
+    ".yaz.pb.cc",
 ]
 _s_cc_out = [
     "cpp_out",
@@ -141,7 +144,7 @@ def yaz_library(name, srcs, deps, pb_only, proto_only, visibility, tags):
         else:
             runtime_deps = [ "@build_flare_yazik//src/yazik/compiler/support:grpc_support", ]
 
-    native.cc_library(
+    cc.library(
         name = name,
         srcs = [ ":" + gen_srcs_label ],
         hdrs = [ ":" + gen_srcs_label + "_hdrs" ],

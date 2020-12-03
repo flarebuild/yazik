@@ -3,7 +3,7 @@
 #include <book/sample.yaz.h>
 #include <book/sample.pb.h>
 
-namespace com::book {
+namespace com::book::yaz {
     namespace author {
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
             [[nodiscard]] static std::string_view name(Author*);

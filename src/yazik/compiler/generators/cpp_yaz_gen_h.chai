@@ -217,7 +217,7 @@ def Message::declare_builder_vtable() {
         }
         wl("using move_initialize_from_fn = void (*)(void*, void*);")
         wl("move_initialize_from_fn move_initialize_from;")
-        wl("using deserialize_fn = bool (*)(const void*, std::string_view);")
+        wl("using deserialize_fn = bool (*)(const void*, ${cpp_deserialized_buffer});")
         wl("deserialize_fn deserialize;")
         wl("using as_ref_fn = Ref (*)(void*);")
         wl("as_ref_fn as_ref;")
@@ -394,13 +394,24 @@ def Message::define_layered_builder_templ() {
         wl("template <typename Parent>")
         if (field.is_message() || field.is_repeated()) {
             var layered_builder = field.resolve_cpp_layered_builder_t()
-            w_cpp_fn_impl(
-                [ "auto", "LayeredBuilder<Parent>::${getter}"],
-                [], [ "-> ${layered_builder}"],
-                fun [getter]() {
-                    wl("return _vtable->construct_${getter}_builder(_ptr).layered(this);")
-                }
-            )
+            if (!field.is_message() || !field.is_repeated()) {
+                w_cpp_fn_impl(
+                    [ "auto", "LayeredBuilder<Parent>::${getter}"],
+                    [], [ "-> ${layered_builder}"],
+                    fun [getter]() {
+                        wl("return _vtable->construct_${getter}_builder(_ptr).layered(this);")
+                    }
+                )
+            } else {
+                var layered_builder_inner = field.resolve_cpp_layered_inner_builder_t()
+                w_cpp_fn_impl(
+                    [ "auto", "LayeredBuilder<Parent>::${getter}"],
+                    [], [ "-> ${layered_builder}"],
+                    fun [layered_builder_inner, getter]() {
+                        wl("return _vtable->construct_${getter}_builder(_ptr).template layered<${layered_builder_inner}>(this);")
+                    }
+                )
+            }
         } else {
             var builder = field.resolve_cpp_builder_t_in_message()
             w_cpp_fn_impl(

@@ -1,6 +1,6 @@
 #include <book/sample.yaz.pb.h>
 
-namespace com::book {
+namespace com::book::yaz {
     namespace author {
         std::string_view RefPbSpec::name(Author* p) {
             return p->name();
