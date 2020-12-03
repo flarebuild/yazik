@@ -59,7 +59,7 @@ namespace std {
     template <>
     struct hash<::yazik::string_view> {
         std::size_t operator()(const ::yazik::string_view& k) const {
-            return std::hash<::yazik::string_view> {} ( ::yazik::string_view { k.data(), k.size() } );
+            return std::hash<std::string_view> {} ( std::string_view { k.data(), k.size() } );
         }
     };
 }
