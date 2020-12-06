@@ -197,6 +197,9 @@ int main() {
         );
         fill_layered(book_wrap);
         print(book_wrap.as_ref());
+
+        L::debug("------------------");
+        L::debug("{}", book_wrap.as_ref().to_pretty_json());
     }
     {
         rpc::grpc::Runtime runtime;

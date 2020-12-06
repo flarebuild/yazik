@@ -386,6 +386,8 @@ namespace yazik::compiler {
         void cpp_unwrap_builder_repeated();
         void cpp_unwrap_builder_in_variant();
         void cpp_unwrap_builder_in_message();
+        std::string cpp_to_dynamic_in_variant();
+        std::string cpp_to_dynamic_in_message();
 
         bool is_repeated() const {
             return _descriptor->is_repeated();
@@ -592,13 +594,13 @@ namespace yazik::compiler {
 
         std::string cpp_rpc_call_response_sync() const {
             if (is_server_streaming())
-                return "::yazik::rpc::RpcGenerator<contenx_t::resp_ok_t>";
+                return "::yazik::rpc::RpcGenerator<context_t::resp_ok_t>";
             else
-                return "::yazik::rpc::RpcResult<contenx_t::resp_ok_t>";
+                return "::yazik::rpc::RpcResult<context_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_cast_as_broken_sts_sync() const {
-            return ".as_broken<contenx_t::resp_ok_t>";
+            return ".as_broken<context_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_request_sync() const {
@@ -623,16 +625,16 @@ namespace yazik::compiler {
 
         std::string cpp_rpc_call_response_async() const {
             if (is_server_streaming())
-                return "::yazik::rpc::RpcChannel<contenx_t::resp_ok_t>";
+                return "::yazik::rpc::RpcChannel<context_t::resp_ok_t>";
             else
-                return "::yazik::rpc::RpcTask<contenx_t::resp_ok_t>";
+                return "::yazik::rpc::RpcTask<context_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_cast_as_broken_sts_async() const {
             if (is_server_streaming())
-                return ".as_broken_channel<contenx_t::resp_ok_t>";
+                return ".as_broken_channel<context_t::resp_ok_t>";
             else
-                return ".as_broken_task<contenx_t::resp_ok_t>";
+                return ".as_broken_task<context_t::resp_ok_t>";
         }
 
         std::string cpp_rpc_call_request_async() const {
@@ -1079,6 +1081,50 @@ namespace yazik::compiler {
         }
     }
 
+    std::string FieldDescriptorWrap::cpp_to_dynamic_in_message() {
+        if (!is_repeated()) {
+            if (is_message() || is_variant() || is_enum()) {
+                return do_sformat("{}().as_dynamic()", cpp_in_message_getter());
+            } else {
+                return do_sformat("{}()", cpp_in_message_getter());
+            }
+        } else {
+            if (is_message() || is_variant() || is_enum()) {
+                return do_sformat(
+                    "::yazik::compiler::support::repeated_ref_to_dynamic({}())",
+                    cpp_in_message_getter()
+                );
+            } else {
+                return do_sformat(
+                    "::yazik::compiler::support::repeated_to_dynamic({}())",
+                    cpp_in_message_getter()
+                );
+            }
+        }
+    }
+
+    std::string FieldDescriptorWrap::cpp_to_dynamic_in_variant() {
+        if (!is_repeated()) {
+            if (is_message() || is_enum()) {
+                return do_sformat("{}().as_dynamic()", cpp_in_variant_getter());
+            } else {
+                return do_sformat("{}()", cpp_in_variant_getter());
+            }
+        } else {
+            if (is_message() || is_enum()) {
+                return do_sformat(
+                    "::yazik::compiler::support::repeated_ref_to_dynamic({}())",
+                    cpp_in_variant_getter()
+                );
+            } else {
+                return do_sformat(
+                    "::yazik::compiler::support::repeated_to_dynamic({}())",
+                    cpp_in_variant_getter()
+                );
+            }
+        }
+    }
+
     void EnumValueDescriptorWrap::add_to_chai(chaiscript::ChaiScript& script) {
         define_chai_class(
             script,
@@ -1123,6 +1169,8 @@ namespace yazik::compiler {
                 ChaiMemberFn(cpp_unwrap_in_message),
                 ChaiMemberFn(cpp_unwrap_builder_in_variant),
                 ChaiMemberFn(cpp_unwrap_builder_in_message),
+                ChaiMemberFn(cpp_to_dynamic_in_message),
+                ChaiMemberFn(cpp_to_dynamic_in_variant),
                 ChaiMemberFn(is_repeated),
                 ChaiMemberFn(is_message),
                 ChaiMemberFn(as_message),
@@ -1254,6 +1302,10 @@ namespace yazik::compiler {
         script.add_global_const(
             const_var(std::string{"::yazik::string_view"}),
             "cpp_string_view"
+        );
+        script.add_global_const(
+            const_var(std::string{"std::string"}),
+            "cpp_string"
         );
         script.add(
             fun([](

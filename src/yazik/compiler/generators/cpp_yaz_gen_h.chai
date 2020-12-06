@@ -23,6 +23,24 @@ def Enum::declare() {
                     [], [ "const", "noexcept" ]
                 )
             }
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", cpp_string, "which_str"],
+                [], [ "const"]
+            )
+            w_cpp_fn_decl(
+                [ "[[nodiscard]]", "::folly::dynamic", "as_dynamic"],
+                [], [ "const"]
+            )
+            w_cpp_fn_impl(
+                [ "[[nodiscard]]", "inline", cpp_string, "to_json"],
+                [], [ "const"],
+                fun () { wl("return ::folly::toJson(as_dynamic());") }
+            )
+            w_cpp_fn_impl(
+                [ "[[nodiscard]]", "inline", cpp_string, "to_pretty_json"],
+                [], [ "const"],
+                fun () { wl("return ::folly::toPrettyJson(as_dynamic());") }
+            )
         })
     })
 }
@@ -78,6 +96,20 @@ def Variant::declare_ref() {
         w_cpp_fn_decl(
             [ "[[nodiscard]]", "bool", "is_null"],
             [], [ "const"]
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "::folly::dynamic", "as_dynamic"],
+            [], [ "const"]
+        )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", "inline", cpp_string, "to_json"],
+            [], [ "const"],
+            fun () { wl("return ::folly::toJson(as_dynamic());") }
+        )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", "inline", cpp_string, "to_pretty_json"],
+            [], [ "const"],
+            fun () { wl("return ::folly::toPrettyJson(as_dynamic());") }
         )
     })
 }
@@ -198,6 +230,20 @@ def Message::declare_ref() {
         w_cpp_fn_decl(
             [ "[[nodiscard]]", cpp_serialized_buffer, "serialize"],
             [], [ "const"]
+        )
+        w_cpp_fn_decl(
+            [ "[[nodiscard]]", "::folly::dynamic", "as_dynamic"],
+            [], [ "const"]
+        )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", "inline", cpp_string, "to_json"],
+            [], [ "const"],
+            fun () { wl("return ::folly::toJson(as_dynamic());") }
+        )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", "inline", cpp_string, "to_pretty_json"],
+            [], [ "const"],
+            fun () { wl("return ::folly::toPrettyJson(as_dynamic());") }
         )
     })
 }

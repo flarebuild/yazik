@@ -6,7 +6,7 @@
 namespace com::book::yaz {
     namespace author {
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
-            [[nodiscard]] static std::string_view name(Author*);
+            [[nodiscard]] static ::yazik::string_view name(Author*);
             [[nodiscard]] static const RefVtable* vtable();
             [[nodiscard]] static Builder as_builder(Author*);
             [[nodiscard]] static std::string serialize(Author*);
@@ -32,7 +32,7 @@ namespace com::book::yaz {
     }
     namespace inside_one_of_message {
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
-            [[nodiscard]] static std::string_view field(InsideOneOfMessage*);
+            [[nodiscard]] static ::yazik::string_view field(InsideOneOfMessage*);
             [[nodiscard]] static const RefVtable* vtable();
             [[nodiscard]] static Builder as_builder(InsideOneOfMessage*);
             [[nodiscard]] static std::string serialize(InsideOneOfMessage*);
@@ -59,7 +59,7 @@ namespace com::book::yaz {
     namespace book {
         namespace page {
             struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
-                [[nodiscard]] static ::yazik::compiler::support::repeated_type_t<std::string_view> lines(Book_Page*);
+                [[nodiscard]] static ::yazik::compiler::support::repeated_type_t<::yazik::string_view> lines(Book_Page*);
                 [[nodiscard]] static const RefVtable* vtable();
                 [[nodiscard]] static Builder as_builder(Book_Page*);
                 [[nodiscard]] static std::string serialize(Book_Page*);
@@ -83,7 +83,7 @@ namespace com::book::yaz {
         namespace first_oneof {
             struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
                 [[nodiscard]] static bool is_first_oneof_string(const Book*);
-                [[nodiscard]] static std::string_view first_oneof_string(const Book*);
+                [[nodiscard]] static ::yazik::string_view first_oneof_string(const Book*);
                 [[nodiscard]] static bool is_first_oneof_int(const Book*);
                 [[nodiscard]] static int64_t first_oneof_int(const Book*);
                 [[nodiscard]] static bool is_null(const Book*);
@@ -106,7 +106,7 @@ namespace com::book::yaz {
         namespace second_oneof {
             struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
                 [[nodiscard]] static bool is_second_oneof_string(const Book*);
-                [[nodiscard]] static std::string_view second_oneof_string(const Book*);
+                [[nodiscard]] static ::yazik::string_view second_oneof_string(const Book*);
                 [[nodiscard]] static bool is_second_oneof_int(const Book*);
                 [[nodiscard]] static int64_t second_oneof_int(const Book*);
                 [[nodiscard]] static bool is_second_oneof_message(const Book*);
@@ -134,7 +134,7 @@ namespace com::book::yaz {
         }
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
             [[nodiscard]] static int64_t isbn(Book*);
-            [[nodiscard]] static std::string_view title(Book*);
+            [[nodiscard]] static ::yazik::string_view title(Book*);
             [[nodiscard]] static author::Ref author(Book*);
             [[nodiscard]] static ::yazik::compiler::support::repeated_type_t<book::page::Ref> pages(Book*);
             [[nodiscard]] static book::first_oneof::Ref first_oneof(Book*);
@@ -208,7 +208,7 @@ namespace com::book::yaz {
     }
     namespace get_book_via_author {
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
-            [[nodiscard]] static std::string_view author(GetBookViaAuthor*);
+            [[nodiscard]] static ::yazik::string_view author(GetBookViaAuthor*);
             [[nodiscard]] static const RefVtable* vtable();
             [[nodiscard]] static Builder as_builder(GetBookViaAuthor*);
             [[nodiscard]] static std::string serialize(GetBookViaAuthor*);
@@ -234,7 +234,7 @@ namespace com::book::yaz {
     }
     namespace book_store {
         struct RefPbSpec: protected ::yazik::compiler::support::Initializer {
-            [[nodiscard]] static std::string_view name(BookStore*);
+            [[nodiscard]] static ::yazik::string_view name(BookStore*);
             [[nodiscard]] static const RefVtable* vtable();
             [[nodiscard]] static Builder as_builder(BookStore*);
             [[nodiscard]] static std::string serialize(BookStore*);

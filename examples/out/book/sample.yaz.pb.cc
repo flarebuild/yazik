@@ -2,7 +2,7 @@
 
 namespace com::book::yaz {
     namespace author {
-        std::string_view RefPbSpec::name(Author* p) {
+        ::yazik::string_view RefPbSpec::name(Author* p) {
             return p->name();
         }
         const RefVtable* RefPbSpec::vtable() {
@@ -57,7 +57,7 @@ namespace com::book::yaz {
         }
     }
     namespace inside_one_of_message {
-        std::string_view RefPbSpec::field(InsideOneOfMessage* p) {
+        ::yazik::string_view RefPbSpec::field(InsideOneOfMessage* p) {
             return p->field();
         }
         const RefVtable* RefPbSpec::vtable() {
@@ -113,10 +113,10 @@ namespace com::book::yaz {
     }
     namespace book {
         namespace page {
-            ::yazik::compiler::support::repeated_type_t<std::string_view> RefPbSpec::lines(Book_Page* p) {
+            ::yazik::compiler::support::repeated_type_t<::yazik::string_view> RefPbSpec::lines(Book_Page* p) {
                 return ::ranges::views::all(p->lines())
                     | ::ranges::views::transform([](const auto& x) {
-                        return std::string_view { x };
+                        return ::yazik::string_view { x };
                     });
             }
             const RefVtable* RefPbSpec::vtable() {
@@ -176,7 +176,7 @@ namespace com::book::yaz {
             bool RefPbSpec::is_first_oneof_string(const Book* p) {
                 return p->first_oneof_case() == Book::kFirstOneofString;
             }
-            std::string_view RefPbSpec::first_oneof_string(const Book* p) {
+            ::yazik::string_view RefPbSpec::first_oneof_string(const Book* p) {
                 return p->first_oneof_string();
             }
             bool RefPbSpec::is_first_oneof_int(const Book* p) {
@@ -228,7 +228,7 @@ namespace com::book::yaz {
             bool RefPbSpec::is_second_oneof_string(const Book* p) {
                 return p->second_oneof_case() == Book::kSecondOneofString;
             }
-            std::string_view RefPbSpec::second_oneof_string(const Book* p) {
+            ::yazik::string_view RefPbSpec::second_oneof_string(const Book* p) {
                 return p->second_oneof_string();
             }
             bool RefPbSpec::is_second_oneof_int(const Book* p) {
@@ -295,7 +295,7 @@ namespace com::book::yaz {
         int64_t RefPbSpec::isbn(Book* p) {
             return p->isbn();
         }
-        std::string_view RefPbSpec::title(Book* p) {
+        ::yazik::string_view RefPbSpec::title(Book* p) {
             return p->title();
         }
         author::Ref RefPbSpec::author(Book* p) {
@@ -476,7 +476,7 @@ namespace com::book::yaz {
         }
     }
     namespace get_book_via_author {
-        std::string_view RefPbSpec::author(GetBookViaAuthor* p) {
+        ::yazik::string_view RefPbSpec::author(GetBookViaAuthor* p) {
             return p->author();
         }
         const RefVtable* RefPbSpec::vtable() {
@@ -531,7 +531,7 @@ namespace com::book::yaz {
         }
     }
     namespace book_store {
-        std::string_view RefPbSpec::name(BookStore* p) {
+        ::yazik::string_view RefPbSpec::name(BookStore* p) {
             return p->name();
         }
         const RefVtable* RefPbSpec::vtable() {

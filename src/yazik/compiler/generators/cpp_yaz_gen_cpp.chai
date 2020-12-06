@@ -13,6 +13,27 @@ def Enum::define() {
             [], [ "const", "noexcept" ],
             fun () { wl("return _value;") }
         )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", cpp_string, "Enum::which_str"],
+            [], [ "const"],
+            fun [this]() {
+                w("switch ((Value) _value) ")
+                braced(fun [this] () {
+                    for (v: this.values()) {
+                    wl_outdent("case ${v.name()}:")
+                        wl("return ${q(v.name())};")
+                    }
+
+                })
+                l()
+                wl("return ::yazik::do_sformat(\"unknown int: {}\", which());")
+            }
+        )
+        w_cpp_fn_impl(
+            [ "[[nodiscard]]", "::folly::dynamic", "Enum::as_dynamic"],
+            [], [ "const"],
+            fun () { wl("return { which_str() };") }
+        )
     })
 }
 
@@ -46,6 +67,23 @@ def Variant::define_ref() {
         [], [ "const" ],
         fun () {
             wl("return _vtable->is_null(_ptr);")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "[[nodiscard]]", "::folly::dynamic", "Ref::as_dynamic"],
+        [], [ "const"],
+        fun [this] () {
+            w("if (is_null()) ")
+            braced(fun () { wl("return ${q("null")};") })
+            for (field: this.fields()) {
+                var getter = field.cpp_in_variant_getter();
+                w(" else if (is_${getter}()) ")
+                braced(fun [field, getter] () {
+                    wl("return ::folly::dynamic::object(${q(getter)}, ${ field.cpp_to_dynamic_in_variant() });")
+                })
+            }
+            l()
+            wl("return ${q("unknown")};")
         }
     )
 }
@@ -118,6 +156,18 @@ def Message::define_ref() {
         [], [ "const"],
         fun () {
             wl("return _vtable->serialize(_ptr);")
+        }
+    )
+    w_cpp_fn_impl(
+        [ "[[nodiscard]]", "::folly::dynamic", "Ref::as_dynamic"],
+        [], [ "const"],
+        fun [this] () {
+            wl("return ::folly::dynamic::object")
+            for (field: this.fields()) {
+                var getter = field.cpp_in_variant_getter();
+                wl_indent("(${q(getter)}, ${field.cpp_to_dynamic_in_message()})")
+            }
+            wl(";")
         }
     )
 }

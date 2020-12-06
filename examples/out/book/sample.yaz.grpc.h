@@ -39,7 +39,7 @@ namespace com::book::yaz {
                     auto payload = payload_t { scheduler };
                     co_await payload.request(service, &BookService::AsyncService::RequestGetBook);
                     spawn(unit, service, scheduler);
-                    co_await payload.run(unit);
+                    co_await payload.run(unit).wrapped();
                     co_return;
                 }
             };
@@ -76,7 +76,7 @@ namespace com::book::yaz {
                     auto payload = payload_t { scheduler };
                     co_await payload.request(service, &BookService::AsyncService::RequestGetBooksViaAuthor);
                     spawn(unit, service, scheduler);
-                    co_await payload.run(unit);
+                    co_await payload.run(unit).wrapped();
                     co_return;
                 }
             };
@@ -113,7 +113,7 @@ namespace com::book::yaz {
                     auto payload = payload_t { scheduler };
                     co_await payload.request(service, &BookService::AsyncService::RequestGetGreatestBook);
                     spawn(unit, service, scheduler);
-                    co_await payload.run(unit);
+                    co_await payload.run(unit).wrapped();
                     co_return;
                 }
             };

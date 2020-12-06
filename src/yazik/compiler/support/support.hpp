@@ -7,6 +7,7 @@
 #include <folly/FBVector.h>
 #include <folly/Function.h>
 #include <folly/Unit.h>
+#include <folly/dynamic.h>
 #include <boost/noncopyable.hpp>
 #include <optional>
 
@@ -44,6 +45,21 @@ namespace yazik::compiler::support {
         T, ::ranges::category::random_access | ::ranges::category::sized
     >;
 
+    template <typename T>
+    ::folly::dynamic repeated_to_dynamic(repeated_type_t<T> repeated) {
+        auto result = ::folly::dynamic::array();
+        for (auto&& x : repeated)
+            result.push_back(::folly::dynamic(std::move(x)));
+        return result;
+    }
+
+    template <typename T>
+    ::folly::dynamic repeated_ref_to_dynamic(repeated_type_t<T> repeated) {
+        auto result = ::folly::dynamic::array();
+        for (auto&& x : repeated)
+            result.push_back(x.as_dynamic());
+        return result;
+    }
 
     template<typename T, typename Parent>
     class VecLayeredBuilder;

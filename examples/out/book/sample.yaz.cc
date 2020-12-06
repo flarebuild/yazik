@@ -12,6 +12,18 @@ namespace com::book::yaz {
         int Enum::which() const noexcept {
             return _value;
         }
+        [[nodiscard]] std::string Enum::which_str() const {
+            switch ((Value) _value) {
+            case Yep:
+                return "Yep";
+            case Nope:
+                return "Nope";
+            }
+            return ::yazik::do_sformat("unknown int: {}", which());
+        }
+        [[nodiscard]] ::folly::dynamic Enum::as_dynamic() const {
+            return { which_str() };
+        }
     }
     namespace author {
         Ref::Ref(
@@ -21,7 +33,7 @@ namespace com::book::yaz {
         : _ptr { ptr }
         , _vtable { vtable }
         {}
-        std::string_view Ref::name() const {
+        ::yazik::string_view Ref::name() const {
             return _vtable->name(_ptr);
         }
         Builder Ref::as_builder() const {
@@ -29,6 +41,11 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("name", name())
+            ;
         }
         Builder::Builder(
             void* ptr,
@@ -58,7 +75,7 @@ namespace com::book::yaz {
         : _ptr { ptr }
         , _vtable { vtable }
         {}
-        std::string_view Ref::field() const {
+        ::yazik::string_view Ref::field() const {
             return _vtable->field(_ptr);
         }
         Builder Ref::as_builder() const {
@@ -66,6 +83,11 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("field", field())
+            ;
         }
         Builder::Builder(
             void* ptr,
@@ -96,7 +118,7 @@ namespace com::book::yaz {
             : _ptr { ptr }
             , _vtable { vtable }
             {}
-            ::yazik::compiler::support::repeated_type_t<std::string_view> Ref::lines() const {
+            ::yazik::compiler::support::repeated_type_t<::yazik::string_view> Ref::lines() const {
                 return _vtable->lines(_ptr);
             }
             Builder Ref::as_builder() const {
@@ -104,6 +126,11 @@ namespace com::book::yaz {
             }
             std::string Ref::serialize() const {
                 return _vtable->serialize(_ptr);
+            }
+            [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+                return ::folly::dynamic::object
+                    ("lines", ::yazik::compiler::support::repeated_to_dynamic(lines()))
+                ;
             }
             Builder::Builder(
                 void* ptr,
@@ -133,6 +160,18 @@ namespace com::book::yaz {
             int Enum::which() const noexcept {
                 return _value;
             }
+            [[nodiscard]] std::string Enum::which_str() const {
+                switch ((Value) _value) {
+                case Available:
+                    return "Available";
+                case NotAvailable:
+                    return "NotAvailable";
+                }
+                return ::yazik::do_sformat("unknown int: {}", which());
+            }
+            [[nodiscard]] ::folly::dynamic Enum::as_dynamic() const {
+                return { which_str() };
+            }
         }
         namespace first_oneof {
             Ref::Ref(
@@ -145,7 +184,7 @@ namespace com::book::yaz {
             bool Ref::is_first_oneof_string() const {
                 return _vtable->is_first_oneof_string(_ptr);
             }
-            std::string_view Ref::first_oneof_string() const {
+            ::yazik::string_view Ref::first_oneof_string() const {
                 return _vtable->first_oneof_string(_ptr);
             }
             bool Ref::is_first_oneof_int() const {
@@ -156,6 +195,16 @@ namespace com::book::yaz {
             }
             bool Ref::is_null() const {
                 return _vtable->is_null(_ptr);
+            }
+            [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+                if (is_null()) {
+                    return "null";
+                } else if (is_first_oneof_string()) {
+                    return ::folly::dynamic::object("first_oneof_string", first_oneof_string());
+                } else if (is_first_oneof_int()) {
+                    return ::folly::dynamic::object("first_oneof_int", first_oneof_int());
+                }
+                return "unknown";
             }
             Builder::Builder(
                 void* ptr,
@@ -182,7 +231,7 @@ namespace com::book::yaz {
             bool Ref::is_second_oneof_string() const {
                 return _vtable->is_second_oneof_string(_ptr);
             }
-            std::string_view Ref::second_oneof_string() const {
+            ::yazik::string_view Ref::second_oneof_string() const {
                 return _vtable->second_oneof_string(_ptr);
             }
             bool Ref::is_second_oneof_int() const {
@@ -199,6 +248,18 @@ namespace com::book::yaz {
             }
             bool Ref::is_null() const {
                 return _vtable->is_null(_ptr);
+            }
+            [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+                if (is_null()) {
+                    return "null";
+                } else if (is_second_oneof_string()) {
+                    return ::folly::dynamic::object("second_oneof_string", second_oneof_string());
+                } else if (is_second_oneof_int()) {
+                    return ::folly::dynamic::object("second_oneof_int", second_oneof_int());
+                } else if (is_second_oneof_message()) {
+                    return ::folly::dynamic::object("second_oneof_message", second_oneof_message().as_dynamic());
+                }
+                return "unknown";
             }
             Builder::Builder(
                 void* ptr,
@@ -227,7 +288,7 @@ namespace com::book::yaz {
         int64_t Ref::isbn() const {
             return _vtable->isbn(_ptr);
         }
-        std::string_view Ref::title() const {
+        ::yazik::string_view Ref::title() const {
             return _vtable->title(_ptr);
         }
         author::Ref Ref::author() const {
@@ -253,6 +314,18 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("isbn", isbn())
+                ("title", title())
+                ("author", author().as_dynamic())
+                ("pages", ::yazik::compiler::support::repeated_ref_to_dynamic(pages()))
+                ("first_oneof_string", first_oneof().as_dynamic())
+                ("availability", availability().as_dynamic())
+                ("recommended", recommended().as_dynamic())
+                ("second_oneof_string", second_oneof().as_dynamic())
+            ;
         }
         Builder::Builder(
             void* ptr,
@@ -300,6 +373,11 @@ namespace com::book::yaz {
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
         }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("isbn", isbn())
+            ;
+        }
         Builder::Builder(
             void* ptr,
             const BuilderVtable* vtable
@@ -328,7 +406,7 @@ namespace com::book::yaz {
         : _ptr { ptr }
         , _vtable { vtable }
         {}
-        std::string_view Ref::author() const {
+        ::yazik::string_view Ref::author() const {
             return _vtable->author(_ptr);
         }
         Builder Ref::as_builder() const {
@@ -336,6 +414,11 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("author", author())
+            ;
         }
         Builder::Builder(
             void* ptr,
@@ -365,7 +448,7 @@ namespace com::book::yaz {
         : _ptr { ptr }
         , _vtable { vtable }
         {}
-        std::string_view Ref::name() const {
+        ::yazik::string_view Ref::name() const {
             return _vtable->name(_ptr);
         }
         Builder Ref::as_builder() const {
@@ -373,6 +456,11 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("name", name())
+            ;
         }
         Builder::Builder(
             void* ptr,
@@ -411,6 +499,11 @@ namespace com::book::yaz {
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
         }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("dep", dep().as_dynamic())
+            ;
+        }
         Builder::Builder(
             void* ptr,
             const BuilderVtable* vtable
@@ -444,6 +537,11 @@ namespace com::book::yaz {
         }
         std::string Ref::serialize() const {
             return _vtable->serialize(_ptr);
+        }
+        [[nodiscard]] ::folly::dynamic Ref::as_dynamic() const {
+            return ::folly::dynamic::object
+                ("dep", dep().as_dynamic())
+            ;
         }
         Builder::Builder(
             void* ptr,

@@ -35,26 +35,28 @@ namespace com::book::yaz {
             struct SyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::UnarySync;
                 using context_t = Ctx;
+                using request_t = get_book_request::Ref;
                 /*
-                ::yazik::rpc::RpcResult<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcResult<context_t::resp_ok_t> call(
                     context_t& context,
                     get_book_request::Ref request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken<contenx_t::resp_ok_t>;
+                        .as_broken<context_t::resp_ok_t>;
                 }
                 */
             };
             struct AsyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::UnaryAsync;
                 using context_t = Ctx;
+                using request_t = get_book_request::Ref;
                 /*
-                ::yazik::rpc::RpcTask<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcTask<context_t::resp_ok_t> call(
                     context_t& context,
                     get_book_request::Ref request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken_task<contenx_t::resp_ok_t>;
+                        .as_broken_task<context_t::resp_ok_t>;
                 }
                 */
             };
@@ -89,26 +91,28 @@ namespace com::book::yaz {
             struct SyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::ServerStreamingSync;
                 using context_t = Ctx;
+                using request_t = get_book_via_author::Ref;
                 /*
-                ::yazik::rpc::RpcGenerator<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcGenerator<context_t::resp_ok_t> call(
                     context_t& context,
                     get_book_via_author::Ref request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken<contenx_t::resp_ok_t>;
+                        .as_broken<context_t::resp_ok_t>;
                 }
                 */
             };
             struct AsyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::ServerStreamingAsync;
                 using context_t = Ctx;
+                using request_t = get_book_via_author::Ref;
                 /*
-                ::yazik::rpc::RpcChannel<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcChannel<context_t::resp_ok_t> call(
                     context_t& context,
                     get_book_via_author::Ref request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken_channel<contenx_t::resp_ok_t>;
+                        .as_broken_channel<context_t::resp_ok_t>;
                 }
                 */
             };
@@ -143,26 +147,28 @@ namespace com::book::yaz {
             struct SyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::ClientStreamingSync;
                 using context_t = Ctx;
+                using request_t = ::yazik::rpc::RpcGenerator<get_book_request::Ref>;
                 /*
-                ::yazik::rpc::RpcResult<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcResult<context_t::resp_ok_t> call(
                     context_t& context,
                     ::yazik::rpc::RpcGenerator<get_book_request::Ref> request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken<contenx_t::resp_ok_t>;
+                        .as_broken<context_t::resp_ok_t>;
                 }
                 */
             };
             struct AsyncCall {
                 constexpr static auto s_rpc_type = ::yazik::rpc::RpcUnitType::ClientStreamingAsync;
                 using context_t = Ctx;
+                using request_t = ::yazik::rpc::RpcChannel<get_book_request::Ref>;
                 /*
-                ::yazik::rpc::RpcTask<contenx_t::resp_ok_t> call(
+                ::yazik::rpc::RpcTask<context_t::resp_ok_t> call(
                     context_t& context,
                     ::yazik::rpc::RpcChannel<get_book_request::Ref> request
                 ) noexcept {
                     return ::yazik::rpc::RpcStatus::unimplemenmted()
-                        .as_broken_task<contenx_t::resp_ok_t>;
+                        .as_broken_task<context_t::resp_ok_t>;
                 }
                 */
             };

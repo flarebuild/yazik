@@ -105,11 +105,19 @@ namespace com::book::yaz {
             [[nodiscard]] int which() const noexcept;
             [[nodiscard]] bool is_yep() const noexcept;
             [[nodiscard]] bool is_nope() const noexcept;
+            [[nodiscard]] std::string which_str() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
     }
     namespace author {
         struct RefVtable {
-            using name_fn = std::string_view (*)(const void*);
+            using name_fn = ::yazik::string_view (*)(const void*);
             name_fn name;
             using as_builder_fn = Builder (*)(void*);
             as_builder_fn as_builder;
@@ -127,16 +135,23 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
-            [[nodiscard]] std::string_view name() const;
+            [[nodiscard]] ::yazik::string_view name() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_name_fn = void (*)(const void*, std::string);
             set_name_fn set_name;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -187,7 +202,7 @@ namespace com::book::yaz {
     }
     namespace inside_one_of_message {
         struct RefVtable {
-            using field_fn = std::string_view (*)(const void*);
+            using field_fn = ::yazik::string_view (*)(const void*);
             field_fn field;
             using as_builder_fn = Builder (*)(void*);
             as_builder_fn as_builder;
@@ -205,16 +220,23 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
-            [[nodiscard]] std::string_view field() const;
+            [[nodiscard]] ::yazik::string_view field() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_field_fn = void (*)(const void*, std::string);
             set_field_fn set_field;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -266,7 +288,7 @@ namespace com::book::yaz {
     namespace book {
         namespace page {
             struct RefVtable {
-                using lines_fn = ::yazik::compiler::support::repeated_type_t<std::string_view> (*)(const void*);
+                using lines_fn = ::yazik::compiler::support::repeated_type_t<::yazik::string_view> (*)(const void*);
                 lines_fn lines;
                 using as_builder_fn = Builder (*)(void*);
                 as_builder_fn as_builder;
@@ -284,16 +306,23 @@ namespace com::book::yaz {
                 friend class ::yazik::compiler::support::Initializer;
             public:
                 using vtable_t = RefVtable;
-                [[nodiscard]] ::yazik::compiler::support::repeated_type_t<std::string_view> lines() const;
+                [[nodiscard]] ::yazik::compiler::support::repeated_type_t<::yazik::string_view> lines() const;
                 [[nodiscard]] Builder as_builder() const;
                 [[nodiscard]] std::string serialize() const;
+                [[nodiscard]] ::folly::dynamic as_dynamic() const;
+                [[nodiscard]] inline std::string to_json() const {
+                    return ::folly::toJson(as_dynamic());
+                }
+                [[nodiscard]] inline std::string to_pretty_json() const {
+                    return ::folly::toPrettyJson(as_dynamic());
+                }
             };
             struct BuilderVtable {
                 using construct_lines_builder_fn = ::yazik::compiler::support::VecBuilder<std::string> (*)(const void*);
                 construct_lines_builder_fn construct_lines_builder;
                 using move_initialize_from_fn = void (*)(void*, void*);
                 move_initialize_from_fn move_initialize_from;
-                using deserialize_fn = bool (*)(const void*, std::string_view);
+                using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
                 deserialize_fn deserialize;
                 using as_ref_fn = Ref (*)(void*);
                 as_ref_fn as_ref;
@@ -362,13 +391,21 @@ namespace com::book::yaz {
                 [[nodiscard]] int which() const noexcept;
                 [[nodiscard]] bool is_available() const noexcept;
                 [[nodiscard]] bool is_not_available() const noexcept;
+                [[nodiscard]] std::string which_str() const;
+                [[nodiscard]] ::folly::dynamic as_dynamic() const;
+                [[nodiscard]] inline std::string to_json() const {
+                    return ::folly::toJson(as_dynamic());
+                }
+                [[nodiscard]] inline std::string to_pretty_json() const {
+                    return ::folly::toPrettyJson(as_dynamic());
+                }
             };
         }
         namespace first_oneof {
             struct RefVtable {
                 using is_first_oneof_string_fn = bool (*)(const void*);
                 is_first_oneof_string_fn is_first_oneof_string;
-                using first_oneof_string_fn = std::string_view (*)(const void*);
+                using first_oneof_string_fn = ::yazik::string_view (*)(const void*);
                 first_oneof_string_fn first_oneof_string;
                 using is_first_oneof_int_fn = bool (*)(const void*);
                 is_first_oneof_int_fn is_first_oneof_int;
@@ -388,10 +425,17 @@ namespace com::book::yaz {
             public:
                 using vtable_t = RefVtable;
                 [[nodiscard]] bool is_first_oneof_string() const;
-                [[nodiscard]] std::string_view first_oneof_string() const;
+                [[nodiscard]] ::yazik::string_view first_oneof_string() const;
                 [[nodiscard]] bool is_first_oneof_int() const;
                 [[nodiscard]] int64_t first_oneof_int() const;
                 [[nodiscard]] bool is_null() const;
+                [[nodiscard]] ::folly::dynamic as_dynamic() const;
+                [[nodiscard]] inline std::string to_json() const {
+                    return ::folly::toJson(as_dynamic());
+                }
+                [[nodiscard]] inline std::string to_pretty_json() const {
+                    return ::folly::toPrettyJson(as_dynamic());
+                }
             };
             struct BuilderVtable {
                 using set_first_oneof_string_fn = void (*)(void*, std::string);
@@ -419,7 +463,7 @@ namespace com::book::yaz {
             struct RefVtable {
                 using is_second_oneof_string_fn = bool (*)(const void*);
                 is_second_oneof_string_fn is_second_oneof_string;
-                using second_oneof_string_fn = std::string_view (*)(const void*);
+                using second_oneof_string_fn = ::yazik::string_view (*)(const void*);
                 second_oneof_string_fn second_oneof_string;
                 using is_second_oneof_int_fn = bool (*)(const void*);
                 is_second_oneof_int_fn is_second_oneof_int;
@@ -443,12 +487,19 @@ namespace com::book::yaz {
             public:
                 using vtable_t = RefVtable;
                 [[nodiscard]] bool is_second_oneof_string() const;
-                [[nodiscard]] std::string_view second_oneof_string() const;
+                [[nodiscard]] ::yazik::string_view second_oneof_string() const;
                 [[nodiscard]] bool is_second_oneof_int() const;
                 [[nodiscard]] int64_t second_oneof_int() const;
                 [[nodiscard]] bool is_second_oneof_message() const;
                 [[nodiscard]] inside_one_of_message::Ref second_oneof_message() const;
                 [[nodiscard]] bool is_null() const;
+                [[nodiscard]] ::folly::dynamic as_dynamic() const;
+                [[nodiscard]] inline std::string to_json() const {
+                    return ::folly::toJson(as_dynamic());
+                }
+                [[nodiscard]] inline std::string to_pretty_json() const {
+                    return ::folly::toPrettyJson(as_dynamic());
+                }
             };
             struct BuilderVtable {
                 using set_second_oneof_string_fn = void (*)(void*, std::string);
@@ -478,7 +529,7 @@ namespace com::book::yaz {
         struct RefVtable {
             using isbn_fn = int64_t (*)(const void*);
             isbn_fn isbn;
-            using title_fn = std::string_view (*)(const void*);
+            using title_fn = ::yazik::string_view (*)(const void*);
             title_fn title;
             using author_fn = author::Ref (*)(const void*);
             author_fn author;
@@ -509,7 +560,7 @@ namespace com::book::yaz {
         public:
             using vtable_t = RefVtable;
             [[nodiscard]] int64_t isbn() const;
-            [[nodiscard]] std::string_view title() const;
+            [[nodiscard]] ::yazik::string_view title() const;
             [[nodiscard]] author::Ref author() const;
             [[nodiscard]] ::yazik::compiler::support::repeated_type_t<book::page::Ref> pages() const;
             [[nodiscard]] book::first_oneof::Ref first_oneof() const;
@@ -518,6 +569,13 @@ namespace com::book::yaz {
             [[nodiscard]] book::second_oneof::Ref second_oneof() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_isbn_fn = void (*)(const void*, int64_t);
@@ -538,7 +596,7 @@ namespace com::book::yaz {
             construct_second_oneof_builder_fn construct_second_oneof_builder;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -654,13 +712,20 @@ namespace com::book::yaz {
             [[nodiscard]] int64_t isbn() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_isbn_fn = void (*)(const void*, int64_t);
             set_isbn_fn set_isbn;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -711,7 +776,7 @@ namespace com::book::yaz {
     }
     namespace get_book_via_author {
         struct RefVtable {
-            using author_fn = std::string_view (*)(const void*);
+            using author_fn = ::yazik::string_view (*)(const void*);
             author_fn author;
             using as_builder_fn = Builder (*)(void*);
             as_builder_fn as_builder;
@@ -729,16 +794,23 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
-            [[nodiscard]] std::string_view author() const;
+            [[nodiscard]] ::yazik::string_view author() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_author_fn = void (*)(const void*, std::string);
             set_author_fn set_author;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -789,7 +861,7 @@ namespace com::book::yaz {
     }
     namespace book_store {
         struct RefVtable {
-            using name_fn = std::string_view (*)(const void*);
+            using name_fn = ::yazik::string_view (*)(const void*);
             name_fn name;
             using as_builder_fn = Builder (*)(void*);
             as_builder_fn as_builder;
@@ -807,16 +879,23 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
-            [[nodiscard]] std::string_view name() const;
+            [[nodiscard]] ::yazik::string_view name() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using set_name_fn = void (*)(const void*, std::string);
             set_name_fn set_name;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -888,13 +967,20 @@ namespace com::book::yaz {
             [[nodiscard]] cycle_dep2::Ref dep() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using construct_dep_builder_fn = cycle_dep2::Builder (*)(const void*);
             construct_dep_builder_fn construct_dep_builder;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
@@ -974,13 +1060,20 @@ namespace com::book::yaz {
             [[nodiscard]] cycle_dep1::Ref dep() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
+            [[nodiscard]] ::folly::dynamic as_dynamic() const;
+            [[nodiscard]] inline std::string to_json() const {
+                return ::folly::toJson(as_dynamic());
+            }
+            [[nodiscard]] inline std::string to_pretty_json() const {
+                return ::folly::toPrettyJson(as_dynamic());
+            }
         };
         struct BuilderVtable {
             using construct_dep_builder_fn = cycle_dep1::Builder (*)(const void*);
             construct_dep_builder_fn construct_dep_builder;
             using move_initialize_from_fn = void (*)(void*, void*);
             move_initialize_from_fn move_initialize_from;
-            using deserialize_fn = bool (*)(const void*, std::string_view);
+            using deserialize_fn = bool (*)(const void*, ::yazik::string_view);
             deserialize_fn deserialize;
             using as_ref_fn = Ref (*)(void*);
             as_ref_fn as_ref;
