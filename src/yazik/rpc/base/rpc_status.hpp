@@ -4,6 +4,7 @@
 
 #include <yazik/concurrency/task.hpp>
 #include <yazik/concurrency/channel.hpp>
+#include <yazik/concurrency/generator.hpp>
 #include <yazik/utility/result.hpp>
 
 namespace yazik::rpc {
@@ -128,6 +129,11 @@ namespace yazik::rpc {
         template<typename T = void>
         Channel<T, RpcStatus> as_broken_channel() const {
             return { as_unexpected() };
+        }
+
+        template<typename T = void>
+        Generator<T, RpcStatus> as_broken_generator() const {
+            co_await as_unexpected();
         }
 
         template<typename T = void>
