@@ -82,9 +82,11 @@ namespace yazik::concurrency {
                 std::move(clbk),
                 period
             );
-            control->tick = [control](const boost::system::error_code&) {
-                if (!control->clbk())
+            control->tick = [control](const boost::system::error_code&) mutable {
+                if (!control->clbk()) {
+                    control->tick = nullptr;
                     return;
+                }
                 control->timer.expires_at(control->timer.expires_at() + control->period);
                 control->timer.async_wait(control->tick);
             };
