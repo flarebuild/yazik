@@ -291,9 +291,6 @@ namespace yazik::compiler::grpc_support {
             for (auto&& _: sync_stream) {
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
-                co_await Base::_scheduler->on($yaz_debug(
-                    Base::s_handle_id.c_str()
-                ));
             }
             auto sync_stream_res = sync_stream.result();
             if (!sync_stream_res) {
@@ -315,9 +312,6 @@ namespace yazik::compiler::grpc_support {
             for co_await(auto&& _: async_stream) {
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
-                co_await Base::_scheduler->on($yaz_debug(
-                    Base::s_handle_id.c_str()
-                ));
             }
             if (!async_stream.status().is_ok())
                 co_await async_stream.status().as_broken_task();

@@ -133,7 +133,11 @@ namespace yazik::rpc {
 
         template<typename T = void>
         Generator<T, RpcStatus> as_broken_generator() const {
-            co_await as_unexpected();
+            auto result = [] (RpcStatus sts) mutable -> Generator<T, RpcStatus> {
+                co_await sts.as_broken();
+                co_return;
+            }(std::move(*this));
+            return result;
         }
 
         template<typename T = void>
