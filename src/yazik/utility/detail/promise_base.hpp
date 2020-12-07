@@ -39,6 +39,15 @@ namespace yazik::promises {
         ) = 0;
     };
 
+    template <
+        template<typename, typename> typename PromiseType,
+        typename U,
+        typename UError
+    > concept c_is_error_propagation_promise = std::is_base_of_v<
+        promises::ErrorPropagationPromise<UError>,
+        PromiseType<U, UError>
+    >;
+
     template <typename T, typename Error>
     struct ResultPromise;
     template <typename T, typename Error>

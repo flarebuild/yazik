@@ -204,6 +204,18 @@ namespace promises {
             return !_coroutine || _coroutine.done();
         }
 
+        std::experimental::coroutine_handle<> await_suspend(
+            std::experimental::coroutine_handle<> awaiting_coroutine
+        ) noexcept {
+            _coroutine.promise().set_continuation(awaiting_coroutine, nullptr);
+            return _coroutine;
+        }
+    };
+
+    template<typename T, typename Error>
+    struct ErrorPropagationAwaitable: TaskAwaitableBase<T, Error> {
+        using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+
         template <
             template<typename, typename> typename PromiseType,
             typename U,
@@ -211,9 +223,8 @@ namespace promises {
         > std::experimental::coroutine_handle<> await_suspend(
             std::experimental::coroutine_handle<PromiseType<U, UError>> awaiting_coroutine
         ) noexcept {
-
-            if constexpr (std::is_base_of_v<promises::ErrorPropagationPromise<UError>,PromiseType<U, UError>>)
-                _coroutine.promise().set_continuation(
+            if constexpr (promises::c_is_error_propagation_promise<PromiseType, U, UError>)
+                this->_coroutine.promise().set_continuation(
                     awaiting_coroutine,
                     [](std::experimental::coroutine_handle<>& h, Error&& err) {
                         promises::propagate_error(
@@ -223,18 +234,11 @@ namespace promises {
                     }
                 );
             else
-                _coroutine.promise().set_continuation(
+                this->_coroutine.promise().set_continuation(
                     awaiting_coroutine,
                     nullptr
                 );
-            return _coroutine;
-        }
-
-        std::experimental::coroutine_handle<> await_suspend(
-            std::experimental::coroutine_handle<> awaiting_coroutine
-        ) noexcept {
-            _coroutine.promise().set_continuation(awaiting_coroutine, nullptr);
-            return _coroutine;
+            return this->_coroutine;
         }
     };
 
@@ -412,7 +416,7 @@ namespace promises {
 
     template <typename T = void, typename Error = string>
     Task<T, Error> yaz_fail_t(Error e) noexcept {
-        co_await  yaz_fail(std::move(e));
+        co_await yaz_fail(std::move(e));
         __builtin_unreachable();
     }
 

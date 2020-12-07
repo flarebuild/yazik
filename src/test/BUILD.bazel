@@ -1,0 +1,9 @@
+load("//rules:cc.bzl", "cc")
+
+cc.catch_test_suite(
+    srcs = glob(["*.cpp"]),
+    deps = [
+        "//src/yazik/rpc/base",
+    ],
+    visibility = ["//visibility:public"],
+)

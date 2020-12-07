@@ -424,9 +424,6 @@ namespace yazik::compiler::grpc_support {
         rpc::RpcChannel<typename Ctx::input_ref_t> create_request_stream(Unit& unit) {
             for (;;) {
                 typename Ctx::input_pb_t _request_pb;
-                co_await Base::_scheduler->on($yaz_debug(
-                    Base::s_handle_id.c_str()
-                ));
                 _responder.Read(&_request_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
                 co_yield Ctx::input_pb_spec_t::wrap(_request_pb);
