@@ -289,11 +289,11 @@ namespace yazik::compiler::grpc_support {
             co_await Base::pre_run(unit, request);
             auto sync_stream = Base::call_unit(unit, std::move(request));
             for (auto&& _: sync_stream) {
+                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
+                co_await Base::step_checked(unit);
                 co_await Base::_scheduler->on($yaz_debug(
                     Base::s_handle_id.c_str()
                 ));
-                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
-                co_await Base::step_checked(unit);
             }
             auto sync_stream_res = sync_stream.result();
             if (!sync_stream_res) {
@@ -313,11 +313,11 @@ namespace yazik::compiler::grpc_support {
 
         rpc::RpcTask<> process_async_stream(Unit& unit, auto&& async_stream) noexcept {
             for co_await(auto&& _: async_stream) {
+                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
+                co_await Base::step_checked(unit);
                 co_await Base::_scheduler->on($yaz_debug(
                     Base::s_handle_id.c_str()
                 ));
-                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
-                co_await Base::step_checked(unit);
             }
             if (!async_stream.status().is_ok())
                 co_await async_stream.status().as_broken_task();
