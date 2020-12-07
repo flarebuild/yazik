@@ -310,6 +310,9 @@ namespace yazik::compiler::grpc_support {
 
         rpc::RpcTask<> process_async_stream(Unit& unit, auto&& async_stream) noexcept {
             for co_await(auto&& _: async_stream) {
+                co_await Base::_scheduler->ensure_on($yaz_debug(
+                    Base::s_handle_id.c_str()
+                ));
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
             }
@@ -351,6 +354,7 @@ namespace yazik::compiler::grpc_support {
     protected:
         typename Ctx::input_pb_t _request;
         ::grpc::ServerAsyncReader<typename Ctx::output_pb_t, typename Ctx::input_pb_t> _responder;
+        std::atomic_bool _finished { false };
 
     public:
         ClientStreamingPayloadBase(
@@ -387,6 +391,7 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts) {
+            _finished = true;
             Base::on_finish(unit, sts);
             co_await Base::_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
@@ -422,7 +427,10 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcChannel<typename Ctx::input_ref_t> create_request_stream(Unit& unit) {
-            for (;;) {
+            while (!_finished) {
+                co_await Base::_scheduler->ensure_on($yaz_debug(
+                    Base::s_handle_id.c_str()
+                ));
                 typename Ctx::input_pb_t _request_pb;
                 _responder.Read(&_request_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
