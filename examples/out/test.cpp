@@ -1,6 +1,6 @@
 #include <book/sample.yaz.pb.h>
-#include <book/sample.yaz.rpc.h>
 #include <book/sample.yaz.grpc.h>
+#include <book/sample.yaz.grpc.client.h>
 #include <grpcpp/grpcpp.h>
 #include <yazik/utility/logging.hpp>
 #include <yazik/rpc/grpc/grpc_runtime.hpp>

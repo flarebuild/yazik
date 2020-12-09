@@ -1,0 +1,66 @@
+def Method::write_ctx_tag() {
+    w_cpp_struct("Tag", fun [this]() {
+        wl("static constexpr auto service_name = ::folly::makeFixedString(${q(this.service().name())});")
+        wl("static constexpr auto method_name = ::folly::makeFixedString(${q(this.name())});")
+    })
+}
+
+def Method::write_ctx() {
+    w_cpp_struct("ClientCtx", fun [this]() {
+        this.write_ctx_tag()
+        wl("static constexpr Tag tag;")
+        wl("using input_ref_t = ${ this.input().cpp_ref_t() };")
+        wl("using output_ref_t = ${ this.output().cpp_ref_t() };")
+    })
+}
+
+def Method::concept_templ() {
+    "<Fn, ClientCtx::input_ref_t, ClientCtx::output_ref_t, ClientCtx>"
+}
+
+def Method::write_rpc_concepts() {
+    if (this.is_server_streaming()) {
+        wl("template<typename Fn>")
+        wl("concept c_client = ${cpp_rpc_concept_pref}\n    ${cpp_rpc_concept_ss_client}${this.concept_templ()};")
+    } else if (this.is_client_streaming()) {
+        wl("template<typename Fn>")
+        wl("concept c_client = ${cpp_rpc_concept_pref}\n    ${cpp_rpc_concept_cs_client}${this.concept_templ()};")
+    } else {
+        wl("template<typename Fn>")
+        wl("concept c_client = ${cpp_rpc_concept_pref}\n    ${cpp_rpc_concept_unary_client}${this.concept_templ()};")
+    }
+}
+
+def Method::write_definitions() {
+    this.cpp_namespaced(fun [this] () {
+        this.write_ctx()
+        this.write_rpc_concepts()
+    })
+}
+
+def Service::write_rpc_methods() {
+    this.cpp_namespaced(fun [this]() {
+        for (method: this.methods()) {
+            method.write_definitions()
+        }
+    })
+}
+
+wl("#pragma once")
+l()
+wl("#include <yazik/compiler/support/rpc_client_support.hpp>")
+wl("#include <${replace_proto(m.file_name(), "yaz.rpc.h")}>")
+l()
+for(dep: m.deps()) {
+    if (dep.has_rpc()) {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.rpc.client.h")}>")
+    } else {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.h")}>")
+    }
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for (service: m.services()) {
+        service.write_rpc_methods()
+    }
+})

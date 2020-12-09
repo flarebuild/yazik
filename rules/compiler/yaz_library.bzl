@@ -25,7 +25,9 @@ _s_rpc_cc_proto_exts = [
 ]
 _s_rpc_cc_proto_yaz_exts = [
     ".yaz.rpc.h",
+    ".yaz.rpc.client.h",
     ".yaz.grpc.h",
+    ".yaz.grpc.client.h",
 ]
 
 _s_rpc_cc_out = [

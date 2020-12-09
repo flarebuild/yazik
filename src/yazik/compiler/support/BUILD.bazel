@@ -15,7 +15,8 @@ cc.library(
 cc.library(
     name = "rpc_support",
     hdrs = [
-        "rpc_support.hpp"
+        "rpc_support.hpp",
+        "rpc_client_support.hpp",
     ],
     deps = [
         ":support",
@@ -28,7 +29,8 @@ cc.library(
 cc.library(
     name = "grpc_support",
     hdrs = [
-        "grpc_support.hpp"
+        "grpc_support.hpp",
+        "grpc_client_support.hpp",
     ],
     deps = [
         ":rpc_support",

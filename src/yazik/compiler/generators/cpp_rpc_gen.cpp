@@ -29,11 +29,27 @@ namespace yazik::compiler {
                 );
                 script.eval_file(script_loc);
             } {
+                auto w = FileWriter { file, generator_context, "yaz.rpc.client.h" };
+                chaiscript::ChaiScript script;
+                add_decls_to_chai(script, file, w);
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_rpc_client_gen_h.chai"
+                );
+                script.eval_file(script_loc);
+            } {
                 auto w = FileWriter { file, generator_context, "yaz.grpc.h" };
                 chaiscript::ChaiScript script;
                 add_decls_to_chai(script, file, w);
                 auto script_loc = _rf->Rlocation(
                     "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_grpc_gen_h.chai"
+                );
+                script.eval_file(script_loc);
+            } {
+                auto w = FileWriter { file, generator_context, "yaz.grpc.client.h" };
+                chaiscript::ChaiScript script;
+                add_decls_to_chai(script, file, w);
+                auto script_loc = _rf->Rlocation(
+                    "build_flare_yazik/src/yazik/compiler/generators/cpp_yaz_grpc_client_gen_h.chai"
                 );
                 script.eval_file(script_loc);
             }

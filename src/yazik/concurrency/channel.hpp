@@ -253,6 +253,7 @@ namespace promises {
         using iterator = promises::ChannelIterator<Payload, Status>;
 
     private:
+
         enum class Type {
             SingleResult,
             Stream

@@ -8,6 +8,9 @@ namespace yazik::concepts {
     template <class T, class U>
     concept c_same_as = std::is_same_v<T, U> && std::is_same_v<U, T>;
 
+    template <class T, class U>
+    concept c_not_same_as = !c_same_as<T, U>;
+
     template <class From, class To>
     concept c_just = std::is_convertible_v<From, To>
         && requires(std::add_rvalue_reference_t<From> (&f)()) {

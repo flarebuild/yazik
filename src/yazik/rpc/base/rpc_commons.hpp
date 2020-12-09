@@ -41,11 +41,15 @@ namespace yazik::rpc {
     template<typename T>
     struct RespOk {};
 
-    template<typename T, typename Resp>
-    concept c_request_context = requires (T* a) {
+    template<typename T>
+    concept c_rpc_context = requires (T* a) {
         { T::tag };
         { T::Tag::service_name.c_str() } -> concepts::c_same_as<const char*>;
         { T::Tag::method_name.c_str() } -> concepts::c_same_as<const char*>;
+    };
+
+    template<typename T, typename Resp>
+    concept c_request_context = c_rpc_context<T> && requires (T* a) {
         { a->scheduler } -> concepts::c_just<const concurrency::scheduler_ptr_t&>;
         { a->response.done() } -> concepts::c_same_as<RespOk<Resp>>;
     };
@@ -103,5 +107,32 @@ namespace yazik::rpc {
     concept c_rpc_unit = c_unary_unit<Fn, Req, Res, Ctx>
                       || c_stream_reader_unit<Fn, Req, Res, Ctx>
                       || c_stream_writer_unit<Fn, Req, Res, Ctx>;
+
+    template<typename Fn, typename Res, typename Ctx>
+    concept c_rpc_client_callable = requires (Fn fn) {
+        { fn() } -> concepts::c_same_as<Res>;
+        { fn.ctx() } -> concepts::c_same_as<Ctx&>;
+    };
+    template<typename Fn, typename Ret>
+    concept c_has_finish = requires (Fn fn) {
+        { fn.finish() } -> concepts::c_same_as<RpcTask<Ret>>;
+    };
+
+    template<typename Fn, typename Req, typename Res, typename Ctx>
+    concept c_rpc_unary_client = c_rpc_context<Ctx>
+        && c_rpc_client_callable<Fn, typename Req::builder_t::template layered_t<RpcTask<Res>>, Ctx>;
+
+    template<typename Fn, typename Req, typename Res, typename Ctx>
+    concept c_stream_reader_client = c_rpc_context<Ctx> && c_has_finish<Fn, void>
+        && c_rpc_client_callable<Fn, typename Req::builder_t::template layered_t<RpcChannel<Res>>, Ctx>;
+
+    template<typename Fn, typename Req, typename Res, typename Ctx>
+    concept c_stream_writer_client = c_rpc_context<Ctx> && c_has_finish<Fn, Res>
+        && c_rpc_client_callable<Fn, RpcGenerator<typename Req::builder_t::template layered_t<RpcTask<>>>, Ctx>;
+
+    template<typename Fn, typename Req, typename Res, typename Ctx>
+    concept c_rpc_client = c_rpc_unary_client<Fn, Req, Res, Ctx>
+                        || c_stream_reader_client<Fn, Req, Res, Ctx>
+                        || c_stream_writer_client<Fn, Req, Res, Ctx>;
 
 } // end of ::yazik::rpc namespace

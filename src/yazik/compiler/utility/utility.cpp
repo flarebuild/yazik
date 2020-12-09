@@ -1361,6 +1361,18 @@ namespace yazik::compiler {
             const_var(std::string{"::yazik::rpc::c_unary_async_unit"}),
             "cpp_rpc_concept_unary_async"
         );
+        script.add_global_const(
+            const_var(std::string{"::yazik::rpc::c_stream_reader_client"}),
+            "cpp_rpc_concept_ss_client"
+        );
+        script.add_global_const(
+            const_var(std::string{"::yazik::rpc::c_stream_writer_client"}),
+            "cpp_rpc_concept_cs_client"
+        );
+        script.add_global_const(
+            const_var(std::string{"::yazik::rpc::c_rpc_unary_client"}),
+            "cpp_rpc_concept_unary_client"
+        );
         script.add(
             fun([](const std::string& templ) -> std::string {
                 return do_sformat("::yazik::rpc::RespOk<{}>", templ);

@@ -21,11 +21,11 @@ namespace yazik::concurrency {
         void push_deferred(Task<void, Error>&& task) {
             ++_size;
             _deferred_stack.push(
-                [this, _l_move(task)] () -> OneWayTask {
+                [this] (Task<void, Error> task) -> OneWayTask {
                     co_await task.when_ready();
                     _barrier.publish(_cur_published.fetch_add(1));
                     co_return;
-                }()
+                }(std::move(task))
             );
         }
 

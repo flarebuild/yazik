@@ -135,6 +135,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] ::yazik::string_view name() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -220,6 +221,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] ::yazik::string_view field() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -306,6 +308,7 @@ namespace com::book::yaz {
                 friend class ::yazik::compiler::support::Initializer;
             public:
                 using vtable_t = RefVtable;
+                using builder_t = Builder;
                 [[nodiscard]] ::yazik::compiler::support::repeated_type_t<::yazik::string_view> lines() const;
                 [[nodiscard]] Builder as_builder() const;
                 [[nodiscard]] std::string serialize() const;
@@ -559,6 +562,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] int64_t isbn() const;
             [[nodiscard]] ::yazik::string_view title() const;
             [[nodiscard]] author::Ref author() const;
@@ -709,6 +713,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] int64_t isbn() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -794,6 +799,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] ::yazik::string_view author() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -879,6 +885,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] ::yazik::string_view name() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -964,6 +971,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] cycle_dep2::Ref dep() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;
@@ -1057,6 +1065,7 @@ namespace com::book::yaz {
             friend class ::yazik::compiler::support::Initializer;
         public:
             using vtable_t = RefVtable;
+            using builder_t = Builder;
             [[nodiscard]] cycle_dep1::Ref dep() const;
             [[nodiscard]] Builder as_builder() const;
             [[nodiscard]] std::string serialize() const;

@@ -1,0 +1,77 @@
+def Method::write_grpc_ctx() {
+    w_cpp_struct("GrpcClientCtx: ClientCtx", fun [this]() {
+        wl("using ClientCtx::ClientCtx;")
+        wl("using stub_t = ${this.service().name()}::Stub;")
+        var input = this.input()
+        wl("using input_pb_t = ${input.cpp_pb_t()};")
+        wl("using input_pb_spec_t = ${input.cpp_pb_spec_t()};")
+        wl("using input_pb_builder_spec_t = ${input.cpp_builder_pb_spec_t()};")
+        var output = this.output()
+        wl("using output_pb_t = ${output.cpp_pb_t()};")
+        wl("using output_pb_spec_t = ${output.cpp_pb_spec_t()};")
+        wl("using output_pb_builder_spec_t = ${output.cpp_builder_pb_spec_t()};")
+    })
+}
+
+def Method::client_base() {
+    if (this.is_server_streaming()) {
+        return "ServerStreamingClient"
+    } else if (this.is_client_streaming()) {
+        return "ClientStreamingClient"
+    } else {
+        return "UnaryClient"
+    }
+}
+
+def Method::write_grpc_client() {
+    wl("using GrpcClient = ::yazik::compiler::grpc_support::${ this.client_base() }<GrpcClientCtx>;")
+    w_cpp_struct(
+        "GrpcClientFactory\n: ::yazik::compiler::grpc_support::${ this.client_base() }Factory<GrpcClientCtx>",
+        fun [this]() {
+            wl("using Base = ::yazik::compiler::grpc_support::${ this.client_base() }Factory<GrpcClientCtx>;")
+            w_cpp_constructor_impl_no_body(
+                [ "GrpcClientFactory" ],
+                [ "std::shared_ptr<GrpcClientCtx::stub_t> stub" ],
+                [ "noexcept" ],
+                [ "Base { std::move(stub), &GrpcClientCtx::stub_t::PrepareAsync${ this.name() } }" ]
+            )
+        }
+    )
+}
+
+def Method::write_definitions() {
+    this.cpp_namespaced(fun [this] () {
+        this.write_grpc_ctx()
+        this.write_grpc_client()
+    })
+}
+
+def Service::write_rpc_methods() {
+    this.cpp_namespaced(fun [this]() {
+        for (method: this.methods()) {
+            method.write_definitions()
+        }
+    })
+}
+
+
+wl("#pragma once")
+l()
+wl("#include <yazik/compiler/support/grpc_client_support.hpp>")
+wl("#include <${replace_proto(m.file_name(), "yaz.rpc.client.h")}>")
+wl("#include <${replace_proto(m.file_name(), "yaz.pb.h")}>")
+wl("#include <${replace_proto(m.file_name(), "grpc.pb.h")}>")
+l()
+for(dep: m.deps()) {
+    if (dep.has_rpc()) {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.grpc.client.h")}>")
+    } else {
+        wl("#include <${replace_proto(dep.file_name(), "yaz.pb.h")}>")
+    }
+}
+if (m.has_deps()) { l() }
+m.cpp_namespaced(fun () {
+    for (service: m.services()) {
+        service.write_rpc_methods()
+    }
+})

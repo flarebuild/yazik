@@ -14,7 +14,7 @@ namespace yazik::compiler::grpc_support {
         static constexpr auto s_handle_id = Ctx::Tag::service_name + "::" + Ctx::Tag::method_name;
 
         rpc::grpc::server_queue_thread_scheduler_ptr_t _scheduler;
-        ::yazik::rpc::grpc::GrpcTagStepper _stepper;
+        rpc::grpc::GrpcTagStepper _stepper;
         ::grpc::ServerContext _grpc_ctx;
         typename Ctx::output_pb_t _response_pb;
         typename Ctx::resp_ok_t _resp_ok_tag;

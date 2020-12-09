@@ -215,6 +215,7 @@ def Message::declare_ref() {
         wl("friend class ${cpp_initializer};")
     wl_outdent("public:")
         wl("using vtable_t = RefVtable;")
+        wl("using builder_t = Builder;")
         for (field: this.fields()) {
             var getter = field.cpp_in_message_getter();
             var type = field.resolve_cpp_ref_t_in_message();

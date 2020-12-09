@@ -1,10 +1,6 @@
-def Method::service_name() {
-    return this.service().name();
-}
-
 def Method::write_ctx_tag() {
     w_cpp_struct("Tag", fun [this]() {
-        wl("static constexpr auto service_name = ::folly::makeFixedString(${q(this.service_name())});")
+        wl("static constexpr auto service_name = ::folly::makeFixedString(${q(this.service().name())});")
         wl("static constexpr auto method_name = ::folly::makeFixedString(${q(this.name())});")
     })
 }
