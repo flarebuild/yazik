@@ -1,75 +1,55 @@
 #pragma once
 
+#include <yazik/utility/macro.hpp>
 #include <yazik/utility/utility_defs.hpp>
 
 namespace yazik {
 namespace logging {
 
     enum class LogLevel {
-        Info,
         Debug,
+        Info,
         Warn,
         Error,
         Crit
     };
 
-    inline constexpr const char* c_log_level_str(LogLevel ll) {
-        switch(ll) {
-        case LogLevel::Info:
-            return "INFO";
-        case LogLevel::Debug:
-            return "DEBUG";
-        case LogLevel::Warn:
-            return "WARN";
-        case LogLevel::Error:
-            return "ERROR";
-        case LogLevel::Crit:
-            return "CRIT";
-        }
-        return "";
-    }
-
-    void do_log(const char* level, const string& data);
+    void do_log(LogLevel, const string& data);
 
     struct FormatAdaptorDefault {
         template <typename Arg>
-        static Arg adapt(Arg arg) {
+        static inline Arg adapt(Arg arg) {
             return std::forward<Arg>(arg);
         }
     };
 
-    template <logging::LogLevel LL, typename Adaptor>
+    template <logging::LogLevel LL, logging::LogLevel LLAllowed, typename Adaptor>
     struct Logger {
-
-//#ifdef DEBUG
         template <typename S, typename... Args>
         inline void operator()(const S& format_str, Args&&... args) const {
-            do_log(
-                c_log_level_str(LL),
-                do_format(format_str, Adaptor::template adapt<Args>(args)...)
-            );
+            if constexpr (LL >= LLAllowed)
+                do_log(LL, do_format(format_str, Adaptor::template adapt<Args>(args)...));
         }
-//#else
-//        template <typename S, typename... Args>
-//        inline void operator()(const S&, Args&&...) const {}
-//#endif
 
         template <typename OtherAdaptor>
-        Logger<LL, OtherAdaptor> with() { return Logger<LL, OtherAdaptor>{}; }
+        Logger<LL, LLAllowed, OtherAdaptor> with() { return Logger<LL, LLAllowed, OtherAdaptor>{}; }
     };
 
-    template <typename Adaptor>
+    template <typename Adaptor, logging::LogLevel LLAllowed>
     struct L {
-        static constexpr auto info = logging::Logger<logging::LogLevel::Info, Adaptor>{};
-        static constexpr auto debug = logging::Logger<logging::LogLevel::Debug, Adaptor>{};
-        static constexpr auto warn = logging::Logger<logging::LogLevel::Warn, Adaptor>{};
-        static constexpr auto error = logging::Logger<logging::LogLevel::Error, Adaptor>{};
-        static constexpr auto crit = logging::Logger<logging::LogLevel::Crit, Adaptor>{};
-
+        static constexpr auto debug = logging::Logger<logging::LogLevel::Debug, LLAllowed, Adaptor>{};
+        static constexpr auto info = logging::Logger<logging::LogLevel::Info, LLAllowed, Adaptor>{};
+        static constexpr auto warn = logging::Logger<logging::LogLevel::Warn, LLAllowed, Adaptor>{};
+        static constexpr auto error = logging::Logger<logging::LogLevel::Error, LLAllowed, Adaptor>{};
+        static constexpr auto crit = logging::Logger<logging::LogLevel::Crit, LLAllowed, Adaptor>{};
     };
 
 } // end of ::yazik::logging namespace
 
-using L = logging::L<logging::FormatAdaptorDefault>;
+using L = logging::L<
+    logging::FormatAdaptorDefault,
+    $yaz_release(logging::LogLevel::Info)
+    $yaz_debug(logging::LogLevel::Debug)
+>;
 
 } // end of ::yazik namespace

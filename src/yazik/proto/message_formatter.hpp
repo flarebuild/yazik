@@ -50,30 +50,4 @@ namespace yazik {
 
     } // end of proto_utils namespace
 
-    namespace logging {
-        struct MessageFormatAdaptor {
-            template <
-                typename Arg,
-                typename = std::enable_if_t<std::is_base_of_v<
-                    ::google::protobuf::Message,
-                    std::decay_t<Arg>
-                >>
-            > static const ::google::protobuf::Message& adapt(const Arg& arg) {
-                return arg;
-            }
-
-            template <
-                typename Arg,
-                typename = std::enable_if_t<!std::is_base_of_v<
-                    ::google::protobuf::Message,
-                    std::decay_t<Arg>
-                >>
-            > static Arg adapt(Arg&& arg) {
-                return std::forward<Arg>(arg);
-            }
-        };
-    }
-
-    using LProto = logging::L<logging::MessageFormatAdaptor>;
-
 } // end of ::yazik namespace
