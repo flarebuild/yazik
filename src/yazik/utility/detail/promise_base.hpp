@@ -85,6 +85,14 @@ namespace yazik::promises {
         );
     }
 
+    template<typename Promise, typename Error>
+    inline void propagate_error(
+        std::experimental::coroutine_handle<Promise>& h,
+        Error&& error
+    ) {
+        throw error;
+    }
+
     template <
         template <typename, typename> typename PromiseType,
         typename T,

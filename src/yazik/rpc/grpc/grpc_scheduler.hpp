@@ -45,11 +45,14 @@ namespace yazik::rpc::grpc {
         std::chrono::nanoseconds _period;
         ::grpc::CompletionQueue* _queue;
         ::grpc::Alarm _alarm;
+        bool _strict;
+        std::optional<gpr_timespec> _deadline;
     public:
         GrpcScheduledAction(
             unique_function<bool()>&& clbk,
             std::chrono::nanoseconds period,
-            ::grpc::CompletionQueue* queue
+            ::grpc::CompletionQueue* queue,
+            bool strict
         );
         void proceed(const concurrency::cancel_token_ptr& is_cancelled) override;
         void dispatch();
@@ -138,7 +141,8 @@ namespace yazik::rpc::grpc {
 
         void schedule_periodic_impl(
             concurrency::unique_function<bool()>&& clbk,
-            std::chrono::nanoseconds period
+            std::chrono::nanoseconds period,
+            bool strict
         ) override;
 
         GrpcQueueTag::GrpcQueueTagOp wait_for_tag(GrpcQueueTag& tag);

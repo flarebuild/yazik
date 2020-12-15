@@ -75,19 +75,24 @@ namespace yazik::concurrency {
 
         void schedule_periodic_impl(
             concurrency::unique_function<bool()>&& clbk,
-            std::chrono::nanoseconds period
+            std::chrono::nanoseconds period,
+            bool strict
         ) override {
             auto control = std::make_shared<PeriodicTimerControl>(
                 _io,
                 std::move(clbk),
                 period
             );
-            control->tick = [control](const boost::system::error_code&) mutable {
+            control->tick = [control, strict](const boost::system::error_code&) mutable {
                 if (!control->clbk()) {
                     control->tick = nullptr;
                     return;
                 }
-                control->timer.expires_at(control->timer.expires_at() + control->period);
+                if (strict)
+                    control->timer.expires_at(control->timer.expires_at() + control->period);
+                else
+                    control->timer.expires_from_now(control->period);
+
                 control->timer.async_wait(control->tick);
             };
             control->timer.expires_from_now(period);

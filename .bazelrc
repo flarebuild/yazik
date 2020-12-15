@@ -8,5 +8,7 @@ build:debug -c dbg
 build:debug --javacopt="-g"
 build:debug --copt="-g"
 build:debug --strip="never"
+build:debug --noremote_upload_local_results
+build:debug --spawn_strategy=local
 
 try-import %workspace%/.bazelrc.user

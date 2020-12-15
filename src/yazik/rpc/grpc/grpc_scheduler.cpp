@@ -64,22 +64,21 @@ namespace yazik::rpc::grpc {
     {}
 
     void GrpcQueueAction::proceed(const concurrency::cancel_token_ptr& is_cancelled) {
+        yaz_defer { delete this; };
         _action.execute(is_cancelled);
-        delete this;
     }
 
     void GrpcQueueAction::dispatch(::grpc::CompletionQueue* queue) {
         _alarm.Set(queue, gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME), self_tagged());
     }
 
-
     GrpcDelayedAction::GrpcDelayedAction(unique_function<void()>&& clbk)
     : _clbk { std::forward<unique_function<void()>>(clbk) }
     {}
 
     void GrpcDelayedAction::proceed(const concurrency::cancel_token_ptr&) {
+        yaz_defer { delete this; };
         _clbk();
-        delete this;
     }
 
     void GrpcDelayedAction::dispatch(::grpc::CompletionQueue* queue, std::chrono::nanoseconds delay) {
@@ -93,26 +92,37 @@ namespace yazik::rpc::grpc {
     GrpcScheduledAction::GrpcScheduledAction(
         unique_function<bool()>&& clbk,
         std::chrono::nanoseconds period,
-        ::grpc::CompletionQueue* queue
+        ::grpc::CompletionQueue* queue,
+        bool strict
     )
     : _clbk { std::forward<unique_function<bool()>>(clbk) }
     , _period { period }
     , _queue { queue }
+    , _strict { strict }
     {}
 
     void GrpcScheduledAction::proceed(const concurrency::cancel_token_ptr& is_cancelled) {
-        if (is_cancelled->is_cancelled() || !_clbk())
-            delete this;
-        else
-            dispatch();
+        bool need_stop = is_cancelled->is_cancelled();
+        yaz_defer { if (need_stop) delete this; };
+        if (need_stop) return;
+        need_stop = !_clbk();
+        if (!need_stop) dispatch();
     }
 
     void GrpcScheduledAction::dispatch() {
-        auto deadline = gpr_time_add(
-            gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME),
-            gpr_time_from_nanos(_period.count(), gpr_clock_type::GPR_TIMESPAN)
-        );
-        _alarm.Set(_queue, deadline, self_tagged());
+        if (_strict && _deadline) {
+            auto now = gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME);
+            auto diff = gpr_time_sub(now, *_deadline);
+            auto diff_millis = gpr_time_to_millis(diff);
+            auto delay = _period.count() - (diff_millis * GPR_NS_PER_MS);
+            _deadline = gpr_time_add(now, gpr_time_from_nanos(delay, gpr_clock_type::GPR_TIMESPAN));
+        } else {
+            _deadline = gpr_time_add(
+                gpr_now(gpr_clock_type::GPR_CLOCK_REALTIME),
+                gpr_time_from_nanos(_period.count(), gpr_clock_type::GPR_TIMESPAN)
+            );
+        }
+        _alarm.Set(_queue, *_deadline, self_tagged());
     }
 
     void GrpcQueueTag::proceed(const concurrency::cancel_token_ptr& /*is_cancelled*/) {
@@ -217,12 +227,14 @@ namespace yazik::rpc::grpc {
 
     void GrpcQueueScheduler::schedule_periodic_impl(
         concurrency::unique_function<bool()>&& clbk,
-        std::chrono::nanoseconds period
+        std::chrono::nanoseconds period,
+        bool strict
     ) {
         (new GrpcScheduledAction(
             std::forward<concurrency::unique_function<bool()>>(clbk),
             period,
-            queue()
+            queue(),
+            strict
         ))->dispatch();
     }
 

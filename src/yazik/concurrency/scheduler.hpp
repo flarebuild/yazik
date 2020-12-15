@@ -16,14 +16,16 @@ namespace yazik::concurrency {
 
         virtual void schedule_periodic_impl(
             concurrency::unique_function<bool()>&& clbk,
-            std::chrono::nanoseconds period
+            std::chrono::nanoseconds period,
+            bool strict
         ) = 0;
 
         template<typename Fn>
         void schedule_periodic(
             Fn&& clbk,
             std::chrono::nanoseconds period,
-            cancel_token_ptr token
+            cancel_token_ptr token,
+            bool strict
         ) {
             schedule_periodic_impl(
                 [_l_move(clbk),token] {
@@ -32,7 +34,8 @@ namespace yazik::concurrency {
                     clbk();
                     return true;
                 },
-                period
+                period,
+                strict
             );
         }
 
