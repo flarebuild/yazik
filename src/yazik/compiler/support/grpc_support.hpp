@@ -329,19 +329,11 @@ namespace yazik::compiler::grpc_support {
             auto request = Ctx::input_pb_spec_t::wrap(Base::_request_pb);
             co_await Base::pre_run(unit, request);
             auto async_stream = Base::call_unit(unit, std::move(request));
-            if (auto result = async_stream.one_result_only()) {
-                if (*result) {
-                    co_await Base::finish(unit, rpc::RpcStatus::ok(), true);
-                } else {
-                    co_await Base::finish(unit, result->error(), false);
-                }
+            auto process_stream_res = co_await process_async_stream(unit, std::move(async_stream)).wrapped();
+            if (!process_stream_res) {
+                co_await Base::finish(unit, process_stream_res.error(), false);
             } else {
-                auto process_stream_res = co_await process_async_stream(unit, std::move(async_stream)).wrapped();
-                if (!process_stream_res) {
-                    co_await Base::finish(unit, process_stream_res.error(), false);
-                } else {
-                    co_await Base::finish(unit, rpc::RpcStatus::ok(), false);
-                }
+                co_await Base::finish(unit, rpc::RpcStatus::ok(), false);
             }
             co_return;
         }

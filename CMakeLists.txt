@@ -22,7 +22,6 @@ set(CMAKE_NM            "${llvm_toolchain_dir}/bin/llvm-nm")
 set(CMAKE_OBJDUMP       "${llvm_toolchain_dir}/bin/llvm-objdump")
 set(CMAKE_RANLIB        "${llvm_toolchain_dir}/bin/llvm-ranlib")
 
-
 function(JOIN OUTPUT GLUE)
     set(_TMP_RESULT "")
     set(_GLUE "") # effective glue is empty at the beginning

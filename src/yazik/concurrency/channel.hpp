@@ -35,10 +35,7 @@ namespace promises {
 
     public:
         ChannelPromise() = default;
-        ~ChannelPromise() {
-//            if (_consumer_handle && !_consumer_handle.done())
-//                _consumer_handle.destroy();
-        }
+        ~ChannelPromise() = default;
 
         std::optional<Payload>& payload() {
             return _payload;
@@ -254,57 +251,39 @@ namespace promises {
 
     private:
 
-        enum class Type {
-            SingleResult,
-            Stream
-        };
-        Type _type;
-        union {
-            handle_type _handle;
-            result_type _result;
-        };
+        handle_type _handle;
 
         Channel() = default;
 
         friend class ChannelGroup<Payload, Status>;
 
         inline void destroy() noexcept {
-            switch (_type) {
-            case Type::Stream:
-                if (_handle)
-                    _handle.destroy();
-                break;
-            case Type::SingleResult:
-                _result.~result_type();
-                break;
-            }
+            if (_handle)
+                _handle.destroy();
         }
 
     public:
 
         explicit Channel(promise_type& promise)
-        : _type { Type::Stream }  {
-            new (&_handle) handle_type{ handle_type::from_promise(promise) };
-        }
+        : _handle { handle_type{ handle_type::from_promise(promise) } }
+        {}
 
-        Channel(Result<Payload, Status>&& value)
-        : _type { Type::SingleResult } {
-            new (&_result) result_type { std::forward<Result<Payload, Status>>(value) };
+        static Channel single(Result<Payload, Status>&& value) {
+            return [] (Result<Payload, Status> value) -> Channel {
+                if (value) {
+                    co_yield std::move(value.value());
+                } else {
+                    co_await std::move(value);
+                }
+                co_return;
+            } (std::move(value));
         }
 
         Channel(const Channel &) = delete;
 
-        Channel(Channel &&other) noexcept
-        : _type { other._type } {
-            switch (_type) {
-            case Type::Stream:
-                _handle = other._handle;
-                other._handle = nullptr;
-                break;
-            case Type::SingleResult:
-                new (&_result) result_type { std::move(other._result) };
-                break;
-            }
+        Channel(Channel &&other) noexcept {
+            _handle = other._handle;
+            other._handle = nullptr;
         }
 
         Channel& operator=(const Channel&) = delete;
@@ -314,30 +293,12 @@ namespace promises {
             if (std::addressof(other) == this)
                 return *this;
 
-            switch (_type) {
-            case Type::Stream:
-                _handle = other._handle;
-                other._handle = nullptr;
-                break;
-            case Type::SingleResult:
-                new (&_result) result_type { std::move(other._result) };
-                break;
-            }
+            _handle = other._handle;
+            other._handle = nullptr;
             return *this;
         }
         ~Channel() {
             destroy();
-        }
-
-        result_type* one_result_only() {
-            switch (_type) {
-            case Type::Stream:
-                return nullptr;
-                break;
-            case Type::SingleResult:
-                return &_result;
-                break;
-            }
         }
 
         auto begin() const noexcept {
@@ -349,7 +310,6 @@ namespace promises {
         }
 
         void swap(Channel& other) noexcept {
-            std::swap(_result, other._result);
             std::swap(_handle, other._handle);
         }
 

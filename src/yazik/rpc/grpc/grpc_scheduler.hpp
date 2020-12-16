@@ -106,6 +106,8 @@ namespace yazik::rpc::grpc {
     , protected concurrency::Waiter {
         std::unique_ptr<::grpc::CompletionQueue> _queue;
         concurrency::Stack<concurrency::unique_function<void()>> _deferred_stack;
+        bool _has_ops_since_last_check = false;
+
     protected:
         concurrency::cancel_token_ptr _need_cancel = new concurrency::CancellationTokenAtomic;
 
@@ -144,6 +146,8 @@ namespace yazik::rpc::grpc {
             std::chrono::nanoseconds period,
             bool strict
         ) override;
+
+        bool has_ops_since_last_check() noexcept override;
 
         GrpcQueueTag::GrpcQueueTagOp wait_for_tag(GrpcQueueTag& tag);
         bool check_need_stop();

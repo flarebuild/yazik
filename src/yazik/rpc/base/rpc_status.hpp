@@ -128,7 +128,7 @@ namespace yazik::rpc {
 
         template<typename T = void>
         Channel<T, RpcStatus> as_broken_channel() const {
-            return { as_unexpected() };
+            return Channel<T, RpcStatus>::single(as_broken<T>());
         }
 
         template<typename T = void>

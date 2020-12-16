@@ -46,6 +46,8 @@ namespace yazik::rpc::grpc {
             return (Service*)it->second.get();
         }
 
+        bool has_ops_since_last_check() noexcept;
+
         Future<> start();
         void stop();
         Future<> wait();

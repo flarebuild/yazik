@@ -238,6 +238,12 @@ namespace yazik::rpc::grpc {
         ))->dispatch();
     }
 
+    bool GrpcQueueScheduler::has_ops_since_last_check() noexcept {
+        bool has = _has_ops_since_last_check;
+        _has_ops_since_last_check = false;
+        return has;
+    }
+
     bool GrpcQueueScheduler::check_need_stop() {
         return _need_cancel->is_cancelled();
     }
@@ -286,6 +292,7 @@ namespace yazik::rpc::grpc {
             return false;
         }
         if (!action.value()) return false;
+        _has_ops_since_last_check = true;
         IGrpcQueueAction* action_ptr = action.value();
         action_ptr->proceed(_need_cancel);
         poll_all_deferred();

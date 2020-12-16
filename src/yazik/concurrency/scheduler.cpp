@@ -11,6 +11,7 @@ namespace yazik::concurrency {
         ::boost::asio::io_service _io;
         cancel_token_ptr _need_cancel;
         std::optional<uint64_t> _thread_id;
+        bool _has_ops_since_last_check = false;
     public:
 
         Disposer dispatch_impl(
@@ -103,12 +104,18 @@ namespace yazik::concurrency {
             _thread_id = thread_idx();
         }
 
+        bool has_ops_since_last_check() noexcept override {
+            bool has = _has_ops_since_last_check;
+            _has_ops_since_last_check = false;
+            return has;
+        }
+
         Future<> run_until_done(Future<> work) override {
             mark_thread();
             _need_cancel = new CancellationTokenAtomic;
             auto io_work = ::boost::asio::io_service::work { _io };
             do {
-                _io.run_for(std::chrono::milliseconds{100});
+                _has_ops_since_last_check = _io.run_for(std::chrono::milliseconds{100});
             } while (!work.is_ready());
             return work;
         }
@@ -132,7 +139,7 @@ namespace yazik::concurrency {
             _thread_id = thread_idx();
             auto io_work = ::boost::asio::io_service::work { _io };
             do {
-                _io.run_for(std::chrono::milliseconds{100});
+                _has_ops_since_last_check = _io.run_for(std::chrono::milliseconds{100});
             } while (!_need_cancel->is_cancelled());
             $breakpoint_hint
         }

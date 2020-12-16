@@ -20,6 +20,8 @@ namespace yazik::concurrency {
             bool strict
         ) = 0;
 
+        virtual bool has_ops_since_last_check() noexcept = 0;
+
         template<typename Fn>
         void schedule_periodic(
             Fn&& clbk,
@@ -72,6 +74,16 @@ namespace yazik::concurrency {
             };
         }
 
+        template<typename REP, typename RATIO>
+        Task<> schedule_delayed(
+            std::chrono::duration<REP, RATIO> delay,
+            cancel_token_ptr token
+        ) {
+            co_await schedule_delayed(delay);
+            if (token->is_cancelled())
+                co_await yaz_fail_f("cancelled");
+            co_return;
+        }
     };
 
     using scheduler_ptr_t = intrusive_ptr<Scheduler>;
