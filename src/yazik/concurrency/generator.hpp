@@ -27,22 +27,12 @@ namespace promises {
         using pointer_type = value_type*;
     private:
 
-        enum class State { Empty, Value, Errorred };
-        State _state = State::Empty;
-
-        union {
-            pointer_type _value;
-            Error _error;
-        };
+        Result<pointer_type, Error> _result = yaz_ok<pointer_type, Error>(nullptr);
 
     public:
 
         GeneratorPromise() noexcept {};
-        ~GeneratorPromise() {
-            if (_state == State::Errorred) {
-                _error.~Error();
-            }
-        }
+        ~GeneratorPromise() = default;
 
         Generator<T, Error> get_return_object() noexcept;
 
@@ -54,48 +44,41 @@ namespace promises {
             std::enable_if_t<!std::is_rvalue_reference<U>::value, int> = 0
         >
         std::experimental::suspend_always yield_value(std::remove_reference_t<T>& value) noexcept {
-            _state = State::Value;
-            _value = std::addressof(value);
+            _result = std::addressof(value);
             return {};
         }
 
         std::experimental::suspend_always yield_value(std::remove_reference_t<T>&& value) noexcept {
-            _state = State::Value;
-            _value = std::addressof(value);
+            _result = std::addressof(value);
             return {};
         }
 
         bool can_continue() {
-            return _state == State::Value;
+            return _result.operator bool();
         }
 
         bool contain_error() {
-            return _state == State::Errorred;
+            return !_result;
         }
 
         void set_error(Error&& error) noexcept {
-            _state = State::Errorred;
-            new (&_error) Error (std::forward<Error>(error));
+            _result = yaz_fail<Error>(std::forward<Error>(error));
         }
 
         void unhandled_exception() {
             set_error(::yazik::detail::current_exception_to_error<Error>());
         }
 
-        void propagate(std::experimental::coroutine_handle<>& self_h) override {
-            /* noop */
-            $breakpoint_hint
-        }
-
-        void propagate_error(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+        std::experimental::coroutine_handle<>
+        propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
             set_error(std::forward<Error>(error));
-//            self_h.destroy();
+            return nullptr;
         }
 
         void return_void() {}
 
         reference_type value() const noexcept {
-            return static_cast<reference_type>(*_value);
+            return static_cast<reference_type>(*_result.value());
         }
 
         template <typename U, typename UError>
@@ -108,11 +91,8 @@ namespace promises {
             return Result<void, UError>(std::forward<::folly::Unexpected<UError>>(failure));
         }
 
-        Result<void, Error> result() {
-            if (_state == State::Errorred)
-                return yaz_fail(_error);
-
-            return yaz_ok<Error>();
+        Result<pointer_type, Error>& result() {
+            return _result;
         }
     };
 
@@ -158,6 +138,10 @@ namespace promises {
 
         GeneratorIterator& operator++() {
             _coroutine.resume();
+            auto& result = _coroutine.promise().result();
+            if (!result) {
+                throw std::move(result.error());
+            }
             return *this;
         }
 
@@ -220,6 +204,11 @@ namespace promises {
 			if (_coroutine) {
 				_coroutine.resume();
 			}
+
+            auto& result = _coroutine.promise().result();
+            if (!result) {
+                throw std::move(result.error());
+            }
 
 			return iterator{ _coroutine };
 		}

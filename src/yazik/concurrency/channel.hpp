@@ -10,80 +10,112 @@
 
 namespace yazik {
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class Channel;
 
 namespace promises {
 
-    template <typename Payload, typename Status>
+    template <typename Payload, typename Error>
     class ChannelIterator;
-    template <typename Payload, typename Status>
+    template <typename Payload, typename Error>
     class ChannelAdvanceOp;
+    template <typename Error>
     class ChannelYieldOp;
 
-    template <typename Payload, typename Status>
+    template <typename Payload, typename Error>
     class ChannelPromise final
-    : ErrorPropagationPromise<Status> {
-        friend class ChannelYieldOp;
-        friend class ChannelAdvanceOp<Payload, Status>;
+    : public ErrorPropagationPromise<Error> {
+        friend class ChannelYieldOp<Error>;
+        friend class ChannelAdvanceOp<Payload, Error>;
 
-        std::optional<Payload> _payload;
-        std::optional<Status> _status;
-        std::experimental::coroutine_handle<> _consumer_handle;
+        bool _destroyed = false;
+        Payload* _value_ptr = nullptr;
+        std::optional<Result<Payload, Error>> _result;
 
-        ChannelYieldOp internal_yield_value() noexcept;
+        PromiseContinuationHolder<Error> _continuation;
+        ChannelYieldOp<Error> internal_yield_value() noexcept;
 
     public:
         ChannelPromise() = default;
         ~ChannelPromise() = default;
 
-        std::optional<Payload>& payload() {
-            return _payload;
+        bool destroyed() {
+            return _destroyed;
         }
 
-        std::optional<Status> status() {
-            return _status;
+        std::optional<Result<Payload, Error>>& result() {
+            return _result;
         }
 
         auto initial_suspend() const noexcept{
             return std::experimental::suspend_always{};
         }
 
-        ChannelYieldOp final_suspend() noexcept;
+        ChannelYieldOp<Error> final_suspend() noexcept;
 
         void unhandled_exception() {
-            _status = ::yazik::detail::current_exception_to_error<Status>();
+            auto handle = propagate_error_impl(
+                detail::current_exception_to_error<Error>(),
+                _continuation.self_handle()
+            );
+            if (handle && _continuation.can_propagate() && !_continuation.need_rethrow())
+                _continuation.change_continuation_handle(handle);
         }
 
-        void set_error(Status&& error) {
-            _status = std::forward<Status>(error);
+        void set_error(Error&& error) {
+            _result = yaz_fail(std::forward<Error>(error));
         }
 
         void return_void() noexcept{}
 
-        ChannelYieldOp yield_value(Payload&& payload) noexcept;
-        ChannelYieldOp yield_value(const Payload& payload) noexcept;
+        ChannelYieldOp<Error> yield_value(Payload&& payload) noexcept;
+        ChannelYieldOp<Error> yield_value(const Payload& payload) noexcept;
 
-        void propagate(std::experimental::coroutine_handle<>& self_h) override {
-            self_h.resume();
+        bool need_rethrow() override {
+            return !_continuation.can_propagate();
         }
 
-        void propagate_error(Status&& error, std::experimental::coroutine_handle<>& self_h) override {
-            set_error(std::forward<Status>(error));
-            if (_consumer_handle && !_consumer_handle.done())
-                _consumer_handle.resume();
-//            self_h.destroy();
+        std::experimental::coroutine_handle<>
+        propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+            std::experimental::coroutine_handle<> handle;
+            if (_continuation.can_propagate()) {
+                handle =  _continuation.propagate_error(error);
+            } else {
+                handle = _continuation.continuation_handle();
+            }
+
+            if (!_continuation.need_rethrow()) {
+                _destroyed = true;
+                self_h.destroy();
+            } else {
+                set_error(std::forward<Error>(error));
+            }
+
+            return handle;
         }
 
-        Channel<Payload, Status> get_return_object() noexcept;
+        PromiseContinuationHolder<Error>& continuation() {
+            return _continuation;
+        }
+
+        Channel<Payload, Error> get_return_object() noexcept;
+
+        void drop_value_ptr() noexcept {
+            _value_ptr = nullptr;
+        }
+
+        bool finished() {
+            return _value_ptr == nullptr;
+        }
     };
 
+    template<typename Error>
     class ChannelYieldOp final {
-        std::experimental::coroutine_handle<> _consumer_handle;
+        PromiseContinuationHolder<Error>& _continuation;
     public:
 
-        ChannelYieldOp(std::experimental::coroutine_handle<> consumer_handle) noexcept
-        : _consumer_handle(consumer_handle)
+        ChannelYieldOp(PromiseContinuationHolder<Error>& continuation) noexcept
+        : _continuation { continuation }
         {}
 
         bool await_ready() const noexcept {
@@ -92,89 +124,102 @@ namespace promises {
 
         std::experimental::coroutine_handle<>
         await_suspend([[maybe_unused]] std::experimental::coroutine_handle<> producer) noexcept {
-            return _consumer_handle;
+            return _continuation.continuation_handle();
         }
 
-        void await_resume() noexcept {}
+        void await_resume() noexcept {
+            $breakpoint_hint
+        }
     };
 
-    template <typename Payload, typename Status>
-    inline ChannelYieldOp ChannelPromise<Payload, Status>::final_suspend() noexcept {
-        if (!_payload || !_status)
-            _status = Status::ok();
+    template <typename Payload, typename Error>
+    inline ChannelYieldOp<Error> ChannelPromise<Payload, Error>::final_suspend() noexcept {
         return internal_yield_value();
     }
 
-    template <typename Payload, typename Status>
-    inline ChannelYieldOp ChannelPromise<Payload, Status>::internal_yield_value() noexcept {
-        return ChannelYieldOp{ _consumer_handle };
+    template <typename Payload, typename Error>
+    inline ChannelYieldOp<Error> ChannelPromise<Payload, Error>::internal_yield_value() noexcept {
+        return ChannelYieldOp{ _continuation };
     }
 
-    template <typename Payload, typename Status>
-    inline ChannelYieldOp ChannelPromise<Payload, Status>::yield_value(Payload&& payload) noexcept {
-        _payload.emplace(std::forward<Payload>(payload));
+    template <typename Payload, typename Error>
+    inline ChannelYieldOp<Error> ChannelPromise<Payload, Error>::yield_value(
+        Payload&& payload
+    ) noexcept {
+        _result = std::forward<Payload>(payload);
+        _value_ptr = &_result->value();
         return internal_yield_value();
     }
 
-    template <typename Payload, typename Status>
-    inline ChannelYieldOp ChannelPromise<Payload, Status>::yield_value(const Payload& payload) noexcept {
-        _payload = payload;
+    template <typename Payload, typename Error>
+    inline ChannelYieldOp<Error> ChannelPromise<Payload, Error>::yield_value(
+        const Payload& payload
+    ) noexcept {
+        _result = payload;
+        _value_ptr = &_result->value();
         return internal_yield_value();
     }
 
-    template <typename Payload, typename Status>
+    template <typename Payload, typename Error>
     class ChannelAdvanceOp {
-        std::experimental::coroutine_handle<> _producer_handle;
-
     protected:
 
-        ChannelPromise<Payload, Status>& _promise;
+        std::experimental::coroutine_handle<ChannelPromise<Payload, Error>> _producer_handle;
 
         ChannelAdvanceOp(
-            ChannelPromise<Payload, Status>& promise,
-            std::experimental::coroutine_handle<> producer_handle
+            std::experimental::coroutine_handle<ChannelPromise<Payload, Error>> producer_handle
         ) noexcept
-        : _promise(promise)
-        , _producer_handle(producer_handle)
+        :  _producer_handle(producer_handle)
         {}
 
     public:
 
         bool await_ready() const noexcept { return false; }
 
+        template<typename ConsumerPromise>
         std::experimental::coroutine_handle<>
-        await_suspend(std::experimental::coroutine_handle<> consumer_handle) noexcept {
-            if (_promise._payload)
-                _promise._payload.reset();
-            _promise._consumer_handle = consumer_handle;
+        await_suspend(std::experimental::coroutine_handle<ConsumerPromise> consumer_handle) {
+            auto& promise = _producer_handle.promise();
+            if (auto& result = promise.result()) {
+                if (result->hasError()) {
+                    throw promise.result()->error();
+                }
+            }
+
+            promise.drop_value_ptr();
+
+            promise.continuation().template set_continuation<ConsumerPromise>(
+                (std::experimental::coroutine_handle<>)_producer_handle,
+                consumer_handle
+            );
             return _producer_handle;
         }
     };
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class ChannelIncrementOp final
-    : public ChannelAdvanceOp<Payload, Status> {
-        using super = ChannelAdvanceOp<Payload, Status>;
+    : public ChannelAdvanceOp<Payload, Error> {
+        using super = ChannelAdvanceOp<Payload, Error>;
 
-        ChannelIterator<Payload, Status>& _iterator;
+        ChannelIterator<Payload, Error>& _iterator;
 
     public:
 
-        ChannelIncrementOp(ChannelIterator<Payload, Status>& iterator) noexcept
-        : super { iterator._handle.promise(), iterator._handle }
+        ChannelIncrementOp(ChannelIterator<Payload, Error>& iterator) noexcept
+        : super { iterator._handle }
         , _iterator(iterator)
         {}
 
-        ChannelIterator<Payload, Status>& await_resume();
+        ChannelIterator<Payload, Error>& await_resume();
     };
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class ChannelIterator final {
-        using promise_type = ChannelPromise<Payload, Status>;
+        using promise_type = ChannelPromise<Payload, Error>;
         using handle_type = std::experimental::coroutine_handle<promise_type>;
 
-        friend class ChannelIncrementOp<Payload, Status>;
-        friend class Channel<Payload, Status>;
+        friend class ChannelIncrementOp<Payload, Error>;
+        friend class Channel<Payload, Error>;
 
         handle_type _handle;
 
@@ -193,17 +238,17 @@ namespace promises {
         : _handle(handle)
         {}
 
-        ChannelIncrementOp<Payload, Status> operator++() noexcept {
-            return ChannelIncrementOp<Payload, Status>{ *this };
+        ChannelIncrementOp<Payload, Error> operator++() noexcept {
+            return ChannelIncrementOp<Payload, Error>{ *this };
         }
 
         reference operator*() const noexcept {
-            return *_handle.promise().payload();
+            return _handle.promise().result()->value();
         }
 
         bool operator==(const ChannelIterator& other) const noexcept {
             if (_handle != other._handle) return false;
-            return !_handle.promise().payload();
+            return _handle.promise().finished();
         }
 
         bool operator!=(const ChannelIterator& other) const noexcept {
@@ -212,42 +257,42 @@ namespace promises {
 
     };
 
-    template<typename Payload, typename Status>
-    ChannelIterator<Payload, Status>& ChannelIncrementOp<Payload, Status>::await_resume() {
+    template<typename Payload, typename Error>
+    ChannelIterator<Payload, Error>& ChannelIncrementOp<Payload, Error>::await_resume() {
         return _iterator;
     }
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class ChannelBeginOp final
-    : public ChannelAdvanceOp<Payload, Status> {
-        using promise_type = ChannelPromise<Payload, Status>;
+    : public ChannelAdvanceOp<Payload, Error> {
+        using promise_type = ChannelPromise<Payload, Error>;
         using handle_type = std::experimental::coroutine_handle<promise_type>;
-        using super = ChannelAdvanceOp<Payload, Status>;
+        using super = ChannelAdvanceOp<Payload, Error>;
     public:
 
         ChannelBeginOp(handle_type producer_handle) noexcept
-        : super{ producer_handle.promise(), producer_handle }
+        : super{ producer_handle }
         {}
 
         using super::await_ready;
 
-        ChannelIterator<Payload, Status> await_resume() {
-            return { handle_type::from_promise(this->_promise) };
+        ChannelIterator<Payload, Error> await_resume() {
+            return { this->_producer_handle };
         }
     };
 
 } // end of ::yazik::promises namespace
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class [[nodiscard]] ChannelGroup;
 
-    template<typename Payload, typename Status>
+    template<typename Payload, typename Error>
     class [[nodiscard]] Channel final {
     public:
-        using promise_type = promises::ChannelPromise<Payload, Status>;
+        using promise_type = promises::ChannelPromise<Payload, Error>;
         using handle_type = std::experimental::coroutine_handle<promise_type>;
-        using result_type = Result<Payload, Status>;
-        using iterator = promises::ChannelIterator<Payload, Status>;
+        using result_type = Result<Payload, Error>;
+        using iterator = promises::ChannelIterator<Payload, Error>;
 
     private:
 
@@ -255,10 +300,10 @@ namespace promises {
 
         Channel() = default;
 
-        friend class ChannelGroup<Payload, Status>;
+        friend class ChannelGroup<Payload, Error>;
 
         inline void destroy() noexcept {
-            if (_handle)
+            if (_handle && !_handle.promise().destroyed())
                 _handle.destroy();
         }
 
@@ -268,8 +313,8 @@ namespace promises {
         : _handle { handle_type{ handle_type::from_promise(promise) } }
         {}
 
-        static Channel single(Result<Payload, Status>&& value) {
-            return [] (Result<Payload, Status> value) -> Channel {
+        static Channel single(Result<Payload, Error>&& value) {
+            return [] (Result<Payload, Error> value) -> Channel {
                 if (value) {
                     co_yield std::move(value.value());
                 } else {
@@ -282,6 +327,7 @@ namespace promises {
         Channel(const Channel &) = delete;
 
         Channel(Channel &&other) noexcept {
+            destroy();
             _handle = other._handle;
             other._handle = nullptr;
         }
@@ -292,7 +338,8 @@ namespace promises {
             destroy();
             if (std::addressof(other) == this)
                 return *this;
-
+            if (_handle)
+                _handle.destroy();
             _handle = other._handle;
             other._handle = nullptr;
             return *this;
@@ -302,7 +349,7 @@ namespace promises {
         }
 
         auto begin() const noexcept {
-            return promises::ChannelBeginOp<Payload, Status>{ _handle };
+            return promises::ChannelBeginOp<Payload, Error>{ _handle };
         }
 
         auto end() const noexcept {
@@ -313,85 +360,27 @@ namespace promises {
             std::swap(_handle, other._handle);
         }
 
-        Status status() {
-            auto sts = _handle.promise().status();
-            return *sts;
+        Result<void, Error> result() {
+            auto& result = _handle.promise().result();
+            if (!result) {
+                return {};
+            }
+            if (result->hasError()) {
+                return yaz_fail<Error>(std::move(result->error()));
+            }
+            return yaz_ok<Error>();
         }
     };
 
-    template<typename Payload, typename Status>
-    class [[nodiscard]] ChannelGroup {
-        using channel_t = Channel<Payload, Status>;
-        using channels_vec_t = vector<channel_t>;
-        channels_vec_t _channels;
-        concurrency::executor_ptr_t _executor;
-
-        template <typename Fn>
-        static Task<void, Status> payload_stream_accept_impl(Fn clbk, channel_t& in_channel) {
-            auto channel = channel_t{};
-            channel.swap(in_channel);
-            for co_await(auto&& payload: channel)
-                payload(clbk).one_way();
-
-            co_return;
-        }
-
-        template <typename Fn>
-        static Task<void, Status> accept_impl(
-            channels_vec_t&& channels,
-            concurrency::Executor* executor,
-            Fn&& accept_fn
-        ) {
-            if (channels.empty()) co_await yaz_fail("no_channels");
-            auto scope = concurrency::CoroScope {};
-            for (auto& channel: channels)
-                accept_fn(channel) >> scope;
-
-            co_await scope.join(executor);
-            co_return;
-        }
-
-    public:
-
-        ChannelGroup(
-            channels_vec_t&& channels,
-            const concurrency::executor_ptr_t& executor
-        )
-        : _channels { std::forward<channels_vec_t>(channels) }
-        , _executor { executor }
-        {}
-
-        template <typename Fn>
-        Task<void, Status> accept(Fn&& accept_fn) {
-            return accept_impl(
-                std::move(_channels),
-                _executor.get(),
-                std::forward<Fn>(accept_fn)
-            );
-        }
-
-        template <typename Fn>
-        Task<void, Status> operator >> (Fn clbk) {
-            return accept(
-                [_l_move(clbk), this](channel_t& channel) mutable -> Task<void, Status> {
-                    return payload_stream_accept_impl<Fn>(
-                        std::move(clbk),
-                        channel
-                    );
-                }
-            );
-        }
-    };
-
-    template<typename Payload, typename Status>
-    void swap(Channel<Payload, Status>& a, Channel<Payload, Status>& b) noexcept {
+    template<typename Payload, typename Error>
+    void swap(Channel<Payload, Error>& a, Channel<Payload, Error>& b) noexcept {
         a.swap(b);
     }
 
 namespace promises {
-    template<typename Payload, typename Status>
-    Channel<Payload, Status> ChannelPromise<Payload, Status>::get_return_object() noexcept {
-        return Channel<Payload, Status>{ *this };
+    template<typename Payload, typename Error>
+    Channel<Payload, Error> ChannelPromise<Payload, Error>::get_return_object() noexcept {
+        return Channel<Payload, Error>{ *this };
     }
 } // end of promises namespace
 

@@ -38,7 +38,13 @@ Task<void> success_task() {
 }
 
 Task<void> failed_task() {
+    co_await success_task();
     co_await yaz_fail("test");
+    co_return;
+}
+
+Task<void> failed_inner_task() {
+    co_await failed_task();
     co_return;
 }
 
@@ -48,16 +54,24 @@ Task<void> thrown_task() {
     co_return;
 }
 
+Task<void> thrown_inner_task() {
+    co_await thrown_task();
+    co_return;
+}
+
 template <typename T>
 string get_task_error(Task<T>&& f) {
     return f.fut().get().error();
 }
 
 TEST_CASE( "task + co_await  test", "[concurrency/task]" ) {
+    REQUIRE(get_task_error(failed_task()) ==  "test");
+    REQUIRE(get_task_error(failed_inner_task()) ==  "test");
+    REQUIRE(get_task_error(thrown_task()) ==  "unhandled_exception: test");
+    REQUIRE(get_task_error(thrown_inner_task()) ==  "unhandled_exception: test");
     REQUIRE(test_succeeded_task().fut().get().value() == 80);
     REQUIRE(get_task_error(test_unsucceed_task()) == "test");
     REQUIRE(get_task_error(test_void_unsucceed_from_int_task()) == "test");
-    REQUIRE(get_task_error(thrown_task()) ==  "unhandled_exception: test");
 }
 
 Task<void> test_task_result() {

@@ -74,14 +74,10 @@ namespace promises {
             )});
         }
 
-        void propagate(std::experimental::coroutine_handle<>& self_h) override {
-            /* noop */
-            $breakpoint_hint
-        }
-
-        void propagate_error(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+        std::experimental::coroutine_handle<>
+        propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
             set_error(std::forward<Error>(error));
-            self_h.destroy();
+            return nullptr;
         }
 
         void unhandled_exception() {
@@ -136,14 +132,9 @@ namespace promises {
 
         template <typename PromiseType>
         void await_suspend(std::experimental::coroutine_handle<PromiseType> h) {
-            promises::propagate_error(h, std::move(_result).error());
+            auto handle = promises::propagate_error(h, std::move(_result).error());
+            if (handle) handle.resume();
         }
-
-//        template <typename U, typename UError>
-//        void await_suspend(std::experimental::coroutine_handle<detail::TaskPromise<U, UError>> h) {
-//            h.promise().set_error(map_error<UError>());
-////            h.resume();
-//        }
 
     };
 

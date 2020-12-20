@@ -40,16 +40,8 @@ namespace yazik::compiler::grpc_support {
         , _stepper { _scheduler.get() $yaz_debug(, s_handle_id.c_str()) }
         {}
 
-        rpc::RpcTask<> step() noexcept {
-            co_await _stepper.step($yaz_debug(s_handle_id.c_str()));
-        }
-
-        rpc::RpcTask<> step_checked() noexcept {
-            if (co_await _stepper.step($yaz_debug(s_handle_id.c_str())))
-                co_return;
-
-            auto sts = rpc::RpcStatus::cancelled();
-            co_await sts.as_broken_task();
+        rpc::RpcTask<bool> step() noexcept {
+            co_return co_await _stepper.step($yaz_debug(s_handle_id.c_str()));
         }
 
         friend class ClientFactoryBase<Ctx>;
@@ -134,7 +126,9 @@ namespace yazik::compiler::grpc_support {
             _reader->StartCall();
             ::grpc::Status sts = ::grpc::Status::OK;
             _reader->Finish(&_output, &sts, this->_stepper.tag());
-            co_await this->step_checked();
+            if (!co_await this->step())
+                co_await rpc::RpcStatus::cancelled()
+                    .as_unexpected();
             if (!sts.ok())
                 co_await rpc::grpc::rpc_from_grpc_status(sts)
                     .as_unexpected();
@@ -280,7 +274,7 @@ namespace yazik::compiler::grpc_support {
             );
 
             _reader->StartCall(this->_stepper.tag());
-            co_await this->step_checked();
+            co_await step_checked();
 
             while(!_is_finished) {
                 co_await this->_scheduler->ensure_on($yaz_debug(
@@ -288,7 +282,7 @@ namespace yazik::compiler::grpc_support {
                 ));
                 auto response = output_pb_t{};
                 _reader->Read(&response, this->_stepper.tag());
-                co_await this->step_checked();
+                co_await step_checked();
                 co_yield Ctx::output_pb_spec_t::wrap(response);
             }
             co_return;
@@ -310,22 +304,35 @@ namespace yazik::compiler::grpc_support {
             return Ctx::input_pb_builder_spec_t::wrap(_input).layered(&_channel);
         }
 
+        rpc::RpcTask<> read_finish_status() noexcept {
+            co_await this->_scheduler->ensure_on($yaz_debug(
+                Base::s_handle_id.c_str()
+            ));
+            ::grpc::Status sts;
+            _reader->Finish(&sts, this->_stepper.tag());
+            if (!co_await this->step())
+                co_await rpc::RpcStatus::cancelled()
+                    .as_unexpected();
+
+            if (!sts.ok())
+                co_await rpc::grpc::rpc_from_grpc_status(sts)
+                    .as_unexpected();
+
+            co_return;
+        }
+
+        rpc::RpcTask<> step_checked() noexcept {
+            if (!co_await this->step())
+                co_await read_finish_status();
+            co_return;
+        }
+
         rpc::RpcTask<> finish() noexcept {
             if (_is_finished.exchange(true))
                 co_await rpc::RpcStatus::internal("not started")
                     .as_broken();
 
-            co_await this->_scheduler->ensure_on($yaz_debug(
-                Base::s_handle_id.c_str()
-            ));
-
-            ::grpc::Status sts = ::grpc::Status::OK;
-            _reader->Finish(&sts, this->_stepper.tag());
-            co_await this->step_checked();
-            if (!sts.ok())
-                co_await rpc::grpc::rpc_from_grpc_status(sts)
-                    .as_unexpected();
-
+            co_await read_finish_status();
             co_return;
         }
 
@@ -454,12 +461,12 @@ namespace yazik::compiler::grpc_support {
             ));
             if (!_is_started) {
                 _writer->StartCall(this->_stepper.tag());
-                co_await this->step_checked();
+                co_await step_checked();
                 _is_started = true;
             }
 
             _writer->Write(_input, this->_stepper.tag());
-            co_await this->step_checked();
+            co_await step_checked();
         }
 
         using op_ret_t = rpc::RpcGenerator<typename input_builder_t::template layered_t<rpc::RpcTask<>>>;
@@ -472,6 +479,30 @@ namespace yazik::compiler::grpc_support {
             }
         }
 
+        rpc::RpcTask<> read_finish_status() noexcept {
+            co_await this->_scheduler->ensure_on($yaz_debug(
+                Base::s_handle_id.c_str()
+            ));
+            ::grpc::Status sts = ::grpc::Status::OK;
+            _writer->Finish(&sts, this->_stepper.tag());
+            if (!co_await this->step())
+                co_await rpc::RpcStatus::cancelled()
+                    .as_unexpected();
+
+            if (!sts.ok())
+                co_await rpc::grpc::rpc_from_grpc_status(sts)
+                    .as_unexpected();
+
+            co_return;
+        }
+
+        rpc::RpcTask<> step_checked() noexcept {
+            if (!co_await this->step())
+                co_await read_finish_status();
+            co_return;
+        }
+
+
         rpc::RpcTask<output_ref_t> finish() noexcept {
             if (_is_finished.exchange(true))
                 co_await rpc::RpcStatus::internal("not started")
@@ -482,16 +513,8 @@ namespace yazik::compiler::grpc_support {
             ));
 
             _writer->WritesDone(this->_stepper.tag());
-            co_await this->step_checked();
-
-            ::grpc::Status sts = ::grpc::Status::OK;
-            _writer->Finish(&sts, this->_stepper.tag());
-            co_await this->step_checked();
-
-            if (!sts.ok())
-                co_await rpc::grpc::rpc_from_grpc_status(sts)
-                    .as_unexpected();
-
+            co_await step_checked();
+            co_await read_finish_status();
             co_return Ctx::output_pb_spec_t::wrap(_output);
         }
 

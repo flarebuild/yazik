@@ -18,25 +18,31 @@ namespace yazik::promises {
 		{}
 	};
 
-
-    class BasePromise
-    : utility::NonCopyable<BasePromise> {
-    public:
-        virtual ~BasePromise() {}
-
-        virtual void propagate(
-            std::experimental::coroutine_handle<>& self_h
-        ) = 0;
-    };
+	struct ErrorPropagationPromiseMarker{};
 
     template <typename Error>
-    class ErrorPropagationPromise
-    : public BasePromise {
+    class ErrorPropagationPromise: public ErrorPropagationPromiseMarker {
     public:
-        virtual void propagate_error(
+        virtual ~ErrorPropagationPromise() = default;
+        virtual std::experimental::coroutine_handle<> propagate_error_impl(
             Error&& error,
             std::experimental::coroutine_handle<>& self_h
         ) = 0;
+
+        virtual bool need_rethrow() {
+            return false;
+        }
+
+        template<typename UError>
+        std::experimental::coroutine_handle<> propagate_error(
+            UError&& error,
+            std::experimental::coroutine_handle<>& self_h
+        ) {
+            return propagate_error_impl(
+                detail::ErrorMapper<UError, Error>::map(std::forward<UError>(error)),
+                self_h
+            );
+        }
     };
 
     template <
@@ -59,55 +65,92 @@ namespace yazik::promises {
     template <typename T, typename Error>
     struct ChannelPromise;
 
-    template <
-        template <typename, typename> typename PromiseType,
-        typename T,
-        typename Error,
-        typename UError
-    > inline void propagate_error(
-        std::experimental::coroutine_handle<PromiseType<T, Error>>& h,
-        UError&& error
-    ) {
-        using Promise = PromiseType<T, Error>;
-
-        static_assert(
-            std::is_base_of_v<ErrorPropagationPromise<Error>, Promise>,
-            "unknown promise type, kill it with fire"
-        );
-
-        h.promise().propagate_error(
-            detail::ErrorMapper<
-                UError, Error
-            >::map(
-                std::forward<UError>(error)
-            ),
-            h
-        );
-    }
-
     template<typename Promise, typename Error>
-    inline void propagate_error(
-        std::experimental::coroutine_handle<Promise>& h,
+    std::experimental::coroutine_handle<> propagate_error_templ(
+        std::experimental::coroutine_handle<>& continuation,
         Error&& error
     ) {
-        throw error;
+        if constexpr (!std::is_base_of_v<ErrorPropagationPromiseMarker, Promise>) {
+            throw error;
+        } else {
+            return ((std::experimental::coroutine_handle<Promise>&)continuation).promise().propagate_error(
+                std::forward<Error>(error),
+                continuation
+            );
+        }
     }
-
-    template <
-        template <typename, typename> typename PromiseType,
-        typename T,
-        typename Error
-    > inline void propagate(
-        std::experimental::coroutine_handle<PromiseType<T, Error>>& h
+    template<typename Promise, typename Error>
+    std::experimental::coroutine_handle<> propagate_error(
+        std::experimental::coroutine_handle<Promise> continuation,
+        Error&& error
     ) {
-        using Promise = PromiseType<T, Error>;
-
-        static_assert(
-            std::is_base_of_v<BasePromise, Promise>,
-            "unknown promise type, kill it with fire"
+        return propagate_error_templ<Promise, Error>(
+            continuation,
+            std::forward<Error>(error)
         );
-
-        h.promise().propagate(h);
     }
+
+
+    template <typename Error>
+    class PromiseContinuationHolder {
+        std::experimental::coroutine_handle<> _self_h;
+        std::experimental::coroutine_handle<> _continuation_h;
+        using propagate_error_fn = std::experimental::coroutine_handle<> (*)(
+            std::experimental::coroutine_handle<>&,
+            Error&&
+        );
+        propagate_error_fn _propagate_error_fn;
+        bool _can_propagete = false;
+        bool _need_rethrow = false;
+
+    public:
+
+        template <typename Promise>
+        void set_continuation(
+            std::experimental::coroutine_handle<> self_h,
+            std::experimental::coroutine_handle<Promise> continuation_h
+        ) {
+            _self_h = self_h;
+            _continuation_h = continuation_h;
+            _propagate_error_fn = propagate_error_templ<Promise, Error>;
+            _can_propagete = std::is_base_of_v<ErrorPropagationPromiseMarker, Promise>;
+            if constexpr(std::is_base_of_v<ErrorPropagationPromiseMarker, Promise>) {
+                _need_rethrow = continuation_h.promise().need_rethrow();
+            } else {
+                _need_rethrow = true;
+            }
+        }
+
+        std::experimental::coroutine_handle<>& self_handle() {
+            return _self_h;
+        }
+
+        std::experimental::coroutine_handle<>& continuation_handle() {
+            return _continuation_h;
+        }
+
+        void change_continuation_handle(std::experimental::coroutine_handle<> handle) {
+            _continuation_h = handle;
+        }
+
+        std::experimental::coroutine_handle<> propagate_error(Error error) {
+            if (!_continuation_h) {
+                throw std::move(error);
+            }
+
+            return _propagate_error_fn(
+                _continuation_h,
+                std::move(error)
+            );
+        }
+
+        bool can_propagate() {
+            return _can_propagete;
+        }
+        bool need_rethrow() {
+            return _need_rethrow;
+        }
+
+    };
 
 } // end of yazik::promises namespace

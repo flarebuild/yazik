@@ -155,19 +155,12 @@ namespace yazik::concurrency {
         std::experimental::coroutine_handle<Promise> awaiter
     ) {
         if (!_executor) {
-            if constexpr (std::is_base_of_v<promises::BasePromise, Promise>)
-                promises::propagate(awaiter);
-            else
-                awaiter.resume();
+            awaiter.resume();
             return;
         }
         concurrency::unique_function<void()> resume_fn = [awaiter]() mutable {
             if (awaiter) {
-                if constexpr (std::is_base_of_v<promises::BasePromise, Promise>) {
-                    promises::propagate(awaiter);
-                } else {
-                    awaiter.resume();
-                }
+                awaiter.resume();
             }
         };
         if (_is_deferred) {

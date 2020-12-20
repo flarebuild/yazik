@@ -139,7 +139,7 @@ Future<void> success_channel_iterator(Channel<int, rpc::RpcStatus> channel) {
 
     REQUIRE(i == 4);
 
-    REQUIRE(channel.status().is_ok());
+    REQUIRE(channel.result());
 
     co_return;
 }
@@ -159,8 +159,8 @@ Future<void, rpc::RpcStatus> error_channel_iterator(Channel<int, rpc::RpcStatus>
 
     REQUIRE(i == 3);
 
-    REQUIRE_FALSE(channel.status().is_ok());
-    co_await yaz_fail(channel.status().to_error_string());
+    REQUIRE_FALSE(channel.result());
+    co_await yaz_fail(channel.result().error());
     co_return;
 }
 
@@ -171,8 +171,8 @@ Channel<int, rpc::RpcStatus> error_only_channel() {
 
 Future<void, rpc::RpcStatus> error_only_channel_iterator(Channel<int, rpc::RpcStatus> channel) {
     for co_await(auto val: channel) {}
-    if (!channel.status().is_ok())
-        co_await channel.status().as_unexpected();
+    if (!channel.result())
+        co_await channel.result();
     co_return;
 }
 

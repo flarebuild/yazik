@@ -18,8 +18,7 @@ namespace promises {
     template<typename T, typename Error>
     class TaskPromiseBase
     : public ErrorPropagationPromise<Error> {
-        std::experimental::coroutine_handle<> _continuation = nullptr;
-        unique_function<void(std::experimental::coroutine_handle<>&, Error&&)> _error_propagation;
+        PromiseContinuationHolder<Error> _continuation;
 
         struct FinalAwaitable {
             bool await_ready() const noexcept { return false; }
@@ -28,44 +27,24 @@ namespace promises {
             std::experimental::coroutine_handle<> await_suspend(
                 std::experimental::coroutine_handle<Promise> coro
             ) noexcept {
-                return coro.promise()._continuation;
+                return coro.promise().continuation().continuation_handle();
             }
 
-            void await_resume() noexcept {}
+            void await_resume() noexcept {
+                $breakpoint_hint
+            }
         };
 
         friend struct FinalAwaitable;
 
     protected:
 
-        TaskPromiseState _state = TaskPromiseState::Empty;
-
-        union {
-            std::conditional_t<
-                std::is_same_v<T,void>,
-                utility::unit_t,
-                T
-            >  _value;
-            Error _error;
-        };
-
-        TaskPromiseBase() noexcept {}
+        std::optional<Result<T, Error>> _result;
+        bool _destroyed = false;
+        TaskPromiseBase() = default;
     public:
 
-        ~TaskPromiseBase() {
-            switch (_state) {
-            case TaskPromiseState::Exception:
-                _error.~Error();
-                break;
-            case TaskPromiseState::Value:
-                if constexpr (!std::is_same_v<T, void>) {
-                    _value.~T();
-                }
-                break;
-            default:
-                break;
-            }
-        }
+        ~TaskPromiseBase() = default;
 
         auto initial_suspend() noexcept {
             return std::experimental::suspend_always{};
@@ -75,68 +54,63 @@ namespace promises {
             return FinalAwaitable{};
         }
 
+        template <typename Promise>
         void set_continuation(
-            std::experimental::coroutine_handle<>& continuation,
-            unique_function<void(std::experimental::coroutine_handle<>&, Error&&)>&& error_propagation
+            std::experimental::coroutine_handle<> self_h,
+            std::experimental::coroutine_handle<Promise> handle
         ) noexcept {
-            _continuation = continuation;
-            _error_propagation = std::move(error_propagation);
+            _continuation.template set_continuation<Promise>(self_h, handle);
+        }
+
+        PromiseContinuationHolder<Error>& continuation() {
+            return _continuation;
         }
 
         void unhandled_exception() noexcept {
-            set_error(detail::current_exception_to_error<Error>());
+            auto handle = propagate_error_impl(
+                detail::current_exception_to_error<Error>(),
+                _continuation.self_handle()
+            );
+            if (handle && _continuation.can_propagate() && !_continuation.need_rethrow())
+                _continuation.change_continuation_handle(handle);
         }
 
         template<
             typename UError,
             typename = std::enable_if_t<std::is_convertible_v<UError&&, Error>>
-        >void set_error(UError&& e) noexcept(std::is_nothrow_constructible_v<Error, UError&&>) {
-            _state = TaskPromiseState::Exception;
-            ::new (static_cast<void*>(std::addressof(_error))) Error (std::forward<UError>(e));
+        > void set_error(UError&& e) noexcept(std::is_nothrow_constructible_v<Error, UError&&>) {
+            _result = yaz_fail<Error>(std::forward<UError>(e));
         }
 
-        void propagate_error(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
-            if (_error_propagation) {
-                _error_propagation(_continuation, std::forward<Error>(error));
+//        bool need_rethrow() override {
+//            return !_continuation.can_propagate();
+//        }
+
+        std::experimental::coroutine_handle<>
+        propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+            std::experimental::coroutine_handle<> handle;
+            if (_continuation.can_propagate()) {
+                handle =  _continuation.propagate_error(error);
+            } else {
+                handle = _continuation.continuation_handle();
+            }
+
+            if (!_continuation.need_rethrow()) {
+                _destroyed = true;
+                self_h.destroy();
             } else {
                 set_error(std::forward<Error>(error));
-                _continuation.resume();
             }
+
+            return handle;
         }
 
-        void propagate(std::experimental::coroutine_handle<>& self_h) override {
-            if (_state != TaskPromiseState::Empty
-                && this->_continuation
-                && !this->_continuation.done()
-            )
-                this->_continuation.resume();
-            else
-                self_h.resume();
+        bool destroyed() {
+            return _destroyed;
         }
 
-        std::optional<Error> error() noexcept {
-            if (_state != TaskPromiseState::Exception)
-                return {};
-            return std::move(_error);
-        }
-
-        T result() {
-            switch (_state) {
-            case TaskPromiseState::Exception:
-                throw std::move(_error);
-            case TaskPromiseState::Value:
-                if constexpr (std::is_same_v<T, void>) {
-                    return;
-                } else {
-                    return std::move(_value);
-                }
-            default:
-                throw detail::ErrorMapper<string, Error>::map("empty");
-            }
-        }
-
-        TaskPromiseState promise_state() {
-            return _state;
+        std::optional<Result<T, Error>>& result() {
+            return _result;
         }
 
     };
@@ -147,9 +121,8 @@ namespace promises {
         using Base = TaskPromiseBase<void, Error>;
     public:
         void return_void() noexcept {
-            Base::_state = TaskPromiseState::Value;
+            this->_result = yaz_ok<Error>();
         }
-
         Task<void, Error> get_return_object() noexcept;
     };
 
@@ -158,20 +131,16 @@ namespace promises {
     : public TaskPromiseBase<T, Error> {
         using Base = TaskPromiseBase<T, Error>;
     public:
-        template<
-            typename Value,
-            typename = std::enable_if_t<std::is_convertible_v<Value&&, T>>
-        > void return_value(Value&& value) noexcept(std::is_nothrow_constructible_v<T, Value&&>) {
-            Base::_state = TaskPromiseState::Value;
-            ::new (static_cast<void*>(std::addressof(Base::_value))) T ( std::forward<Value>(value) );
+        template<typename Value>
+        requires std::is_convertible_v<Value&&, T> || std::is_constructible_v<T, Value>
+        void return_value(Value&& value) noexcept(std::is_nothrow_constructible_v<T, Value&&>) {
+            this->_result = std::forward<Value>(value);
         }
 
         Task<T, Error> get_return_object() noexcept;
     };
 
 } // end of promises namespace
-
-
 
     struct OneWayTask {
         struct promise_type {
@@ -203,50 +172,29 @@ namespace promises {
         bool await_ready() const noexcept {
             return !_coroutine || _coroutine.done();
         }
-
-        std::experimental::coroutine_handle<> await_suspend(
-            std::experimental::coroutine_handle<> awaiting_coroutine
-        ) noexcept {
-            _coroutine.promise().set_continuation(awaiting_coroutine, nullptr);
-            return _coroutine;
-        }
     };
 
     template<typename T, typename Error>
     struct ErrorPropagationAwaitable: TaskAwaitableBase<T, Error> {
         using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
 
-        template <
-            template<typename, typename> typename PromiseType,
-            typename U,
-            typename UError
-        > std::experimental::coroutine_handle<> await_suspend(
-            std::experimental::coroutine_handle<PromiseType<U, UError>> awaiting_coroutine
+        template <typename Promise>
+        std::experimental::coroutine_handle<> await_suspend(
+            std::experimental::coroutine_handle<Promise> awaiting_coroutine
         ) noexcept {
-            if constexpr (promises::c_is_error_propagation_promise<PromiseType, U, UError>)
-                this->_coroutine.promise().set_continuation(
-                    awaiting_coroutine,
-                    [](std::experimental::coroutine_handle<>& h, Error&& err) {
-                        promises::propagate_error(
-                            (std::experimental::coroutine_handle<PromiseType<U, UError>>&) h,
-                            detail::ErrorMapper<Error, UError>::map(std::forward<Error>(err))
-                        );
-                    }
-                );
-            else
-                this->_coroutine.promise().set_continuation(
-                    awaiting_coroutine,
-                    nullptr
-                );
+            this->_coroutine.promise().template set_continuation<Promise>(
+                (std::experimental::coroutine_handle<>)this->_coroutine,
+                awaiting_coroutine
+            );
             return this->_coroutine;
         }
     };
 
     template<typename T, typename Error>
     class TaskAwaitableWhenReady
-    : public TaskAwaitableBase<T, Error> {
+    : public ErrorPropagationAwaitable<T, Error> {
     public:
-        using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+        using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
         void await_resume() const noexcept {}
     };
 
@@ -289,7 +237,7 @@ namespace promises {
 
 		/// Frees resources used by this task.
 		~Task() {
-			if (_coroutine){
+			if (_coroutine && !_coroutine.done() && !_coroutine.promise().destroyed() ) {
 				_coroutine.destroy();
 			}
 		}
@@ -317,21 +265,22 @@ namespace promises {
 		}
 
 		auto operator co_await() const & noexcept {
-			struct Awaitable
-            : TaskAwaitableBase<T, Error> {
-				using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+			struct Awaitable: ErrorPropagationAwaitable<T, Error> {
+				using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
 
 				T await_resume() {
 					if (!this->_coroutine) {
 						throw promises::broken_promise{};
 					}
-                    if (auto error = this->_coroutine.promise().error())
-                        throw std::move(*error);
+					auto& result = this->_coroutine.promise().result();
+                    if (result && result->hasError()) {
+                        throw std::move(result->error());
+                    }
 
-                    if constexpr (std::is_same_v<void, T>)
+                    if constexpr (std::is_same_v<T, void>)
                         return;
                     else
-                        return this->_coroutine.promise().result();
+                        return std::move(result->value());
 				}
 			};
 
@@ -339,21 +288,22 @@ namespace promises {
 		}
 
 		auto operator co_await() const && noexcept {
-			struct Awaitable
-            : TaskAwaitableBase<T, Error> {
-				using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+			struct Awaitable: ErrorPropagationAwaitable<T, Error> {
+				using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
 
 				T await_resume() {
-					if (!this->_coroutine) {
+					if (!this->_coroutine)
 						throw promises::broken_promise{};
-					}
-                    if (auto error = this->_coroutine.promise().error())
-                        throw std::move(*error);
 
-                    if constexpr (std::is_same_v<void, T>)
+					auto& result = this->_coroutine.promise().result();
+                    if (result && result->hasError()) {
+                        throw std::move(result->error());
+                    }
+
+                    if constexpr (std::is_same_v<T, void>)
                         return;
                     else
-                        return this->_coroutine.promise().result();
+                        return std::move(result->value());
 				}
 			};
 
@@ -368,20 +318,17 @@ namespace promises {
 		}
 
 		auto wrapped() const noexcept {
-		    struct Awaitable : TaskAwaitableBase<T, Error> {
-				using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+		    struct Awaitable : ErrorPropagationAwaitable<T, Error> {
+				using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
 
                 Result<T, Error> await_resume() {
                     if (!this->_coroutine) {
                         throw promises::broken_promise{};
                     }
-                    if (auto error = this->_coroutine.promise().error())
-                        return yaz_fail<Error>(std::move(*error));
-
-                    if constexpr (std::is_same_v<void, T>)
-                        return yaz_ok<Error>();
-                    else
-                        return this->_coroutine.promise().result();
+                    auto& result = this->_coroutine.promise().result();
+                    if (!result)
+                        return {};
+                    return *result;
                 }
 		    };
 		    return Awaitable { _coroutine };
@@ -390,10 +337,10 @@ namespace promises {
 		Future<T, Error> fut() {
 		    Task self_move = std::move(*this);
 		    if constexpr (std::is_same_v<T, void>) {
-		        co_await std::move(self_move);
+		        co_await self_move;
 		        co_return;
 		    } else {
-		        co_return co_await std::move(self_move);
+		        co_return co_await self_move;
 		    }
 		}
 

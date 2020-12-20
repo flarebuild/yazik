@@ -26,7 +26,7 @@ namespace yazik::rpc::grpc {
         return _scheduler->on_stop();
     }
 
-    concurrency::scheduler_ptr_t RuntimeWorker::scheduler() noexcept {
+    queue_scheduler_ptr_t RuntimeWorker::scheduler() noexcept {
         return _scheduler;
     }
 

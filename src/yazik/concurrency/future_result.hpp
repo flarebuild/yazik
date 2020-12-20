@@ -101,8 +101,7 @@ namespace promises {
         typename T,
         typename Error,
         template <typename, typename> typename FutureType
-    > class FuturePromiseBase
-    : public promises::ErrorPropagationPromise<Error> {
+    > class FuturePromiseBase {
     protected:
         ::pc::promise<T> _impl;
     public:
@@ -124,15 +123,6 @@ namespace promises {
         }
         auto final_suspend() const noexcept {
             return std::experimental::suspend_never{};
-        }
-
-        void propagate(std::experimental::coroutine_handle<>& self_h) override {
-            self_h.resume();
-        }
-
-        void propagate_error(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
-            set_exception(std::make_exception_ptr(std::forward<Error>(error)));
-            self_h.destroy();
         }
     };
 
