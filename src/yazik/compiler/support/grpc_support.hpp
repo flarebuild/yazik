@@ -207,6 +207,10 @@ namespace yazik::compiler::grpc_support {
         , _responder { &this->_grpc_ctx }
         {}
 
+        ~ServerStreamingPayloadBase() {
+            $breakpoint_hint
+        }
+
         using request_fn_t = void (Ctx::grpc_service_t::*)(
             ::grpc::ServerContext*,
             typename Ctx::input_pb_t*,
@@ -281,6 +285,16 @@ namespace yazik::compiler::grpc_support {
     class ServerStreamingPayloadSync
     : public ServerStreamingPayloadBase<Ctx, Unit> {
         using Base = ServerStreamingPayloadBase<Ctx, Unit>;
+
+        rpc::RpcTask<> process_sync_stream(Unit& unit, rpc::RpcGenerator<typename Ctx::resp_ok_t>&& sync_stream) {
+            for (auto&& _: sync_stream) {
+                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
+                co_await Base::step_checked(unit);
+            }
+            co_await sync_stream.result();
+            co_return;
+        }
+
     public:
         using Base::Base;
 
@@ -288,11 +302,7 @@ namespace yazik::compiler::grpc_support {
             auto request = Ctx::input_pb_spec_t::wrap(Base::_request_pb);
             co_await Base::pre_run(unit, request);
             auto sync_stream = Base::call_unit(unit, std::move(request));
-            for (auto&& _: sync_stream) {
-                Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
-                co_await Base::step_checked(unit);
-            }
-            auto sync_stream_res = sync_stream.result();
+            auto sync_stream_res = co_await process_sync_stream(unit, std::move(sync_stream)).wrapped();
             if (!sync_stream_res) {
                 co_await Base::finish(unit, sync_stream_res.error(), false);
                 co_await sync_stream_res;

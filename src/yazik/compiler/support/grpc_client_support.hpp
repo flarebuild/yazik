@@ -253,6 +253,7 @@ namespace yazik::compiler::grpc_support {
         input_pb_t _input;
         response_reader_ptr_t _reader;
         std::atomic_bool _is_finished { false };
+        std::optional<::grpc::Status> _finish_sts;
 
         friend class ServerStreamingClientFactory<Ctx>;
         friend class ServerStreamingClient<Ctx>;
@@ -274,7 +275,9 @@ namespace yazik::compiler::grpc_support {
             );
 
             _reader->StartCall(this->_stepper.tag());
-            co_await step_checked();
+            if (!co_await step_checked())
+                co_await rpc::RpcStatus::cancelled()
+                    .as_broken();
 
             while(!_is_finished) {
                 co_await this->_scheduler->ensure_on($yaz_debug(
@@ -282,7 +285,8 @@ namespace yazik::compiler::grpc_support {
                 ));
                 auto response = output_pb_t{};
                 _reader->Read(&response, this->_stepper.tag());
-                co_await step_checked();
+                if (!co_await step_checked())
+                    break;
                 co_yield Ctx::output_pb_spec_t::wrap(response);
             }
             co_return;
@@ -305,26 +309,34 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> read_finish_status() noexcept {
+            if (_finish_sts) {
+                if (!_finish_sts->ok())
+                    co_await rpc::grpc::rpc_from_grpc_status(_finish_sts.value())
+                        .as_unexpected();
+                co_return;
+            }
+
             co_await this->_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
-            ::grpc::Status sts;
-            _reader->Finish(&sts, this->_stepper.tag());
+            _finish_sts = ::grpc::Status::OK;
+            _reader->Finish(&_finish_sts.value(), this->_stepper.tag());
             if (!co_await this->step())
                 co_await rpc::RpcStatus::cancelled()
                     .as_unexpected();
 
-            if (!sts.ok())
-                co_await rpc::grpc::rpc_from_grpc_status(sts)
+            if (!_finish_sts->ok())
+                co_await rpc::grpc::rpc_from_grpc_status(_finish_sts.value())
                     .as_unexpected();
 
             co_return;
         }
 
-        rpc::RpcTask<> step_checked() noexcept {
-            if (!co_await this->step())
+        rpc::RpcTask<bool> step_checked() noexcept {
+            bool need_continue = co_await this->step();
+            if (!need_continue)
                 co_await read_finish_status();
-            co_return;
+            co_return need_continue;
         }
 
         rpc::RpcTask<> finish() noexcept {
@@ -440,6 +452,7 @@ namespace yazik::compiler::grpc_support {
         request_writer_t _writer;
         bool _is_started { false };
         std::atomic_bool _is_finished { false };
+        std::optional<::grpc::Status> _finish_sts;
 
         using Base::Base;
 
@@ -461,12 +474,17 @@ namespace yazik::compiler::grpc_support {
             ));
             if (!_is_started) {
                 _writer->StartCall(this->_stepper.tag());
-                co_await step_checked();
+                if (!co_await step_checked())
+                    co_await rpc::RpcStatus::cancelled()
+                        .as_broken();
                 _is_started = true;
             }
 
             _writer->Write(_input, this->_stepper.tag());
-            co_await step_checked();
+            if (!co_await step_checked())
+                co_await rpc::RpcStatus::cancelled()
+                    .as_broken();
+            co_return;
         }
 
         using op_ret_t = rpc::RpcGenerator<typename input_builder_t::template layered_t<rpc::RpcTask<>>>;
@@ -480,26 +498,34 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> read_finish_status() noexcept {
+            if (_finish_sts) {
+                if (!_finish_sts->ok())
+                    co_await rpc::grpc::rpc_from_grpc_status(_finish_sts.value())
+                        .as_unexpected();
+                co_return;
+            }
+
             co_await this->_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
-            ::grpc::Status sts = ::grpc::Status::OK;
-            _writer->Finish(&sts, this->_stepper.tag());
+            _finish_sts = ::grpc::Status::OK;
+            _writer->Finish(&_finish_sts.value(), this->_stepper.tag());
             if (!co_await this->step())
                 co_await rpc::RpcStatus::cancelled()
                     .as_unexpected();
 
-            if (!sts.ok())
-                co_await rpc::grpc::rpc_from_grpc_status(sts)
+            if (!_finish_sts->ok())
+                co_await rpc::grpc::rpc_from_grpc_status(_finish_sts.value())
                     .as_unexpected();
 
             co_return;
         }
 
-        rpc::RpcTask<> step_checked() noexcept {
-            if (!co_await this->step())
+        rpc::RpcTask<bool> step_checked() noexcept {
+            bool need_continue = co_await this->step();
+            if (!need_continue)
                 co_await read_finish_status();
-            co_return;
+            co_return need_continue;
         }
 
 

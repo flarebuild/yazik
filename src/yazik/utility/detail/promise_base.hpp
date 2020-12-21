@@ -101,7 +101,7 @@ namespace yazik::promises {
         );
         propagate_error_fn _propagate_error_fn;
         bool _can_propagete = false;
-        bool _need_rethrow = false;
+        bool _need_rethrow = true;
 
     public:
 
@@ -144,8 +144,14 @@ namespace yazik::promises {
             );
         }
 
+        void set_can_propagate(bool can_propagate) {
+            _can_propagete = can_propagate;
+        }
         bool can_propagate() {
             return _can_propagete;
+        }
+        void set_need_rethrow(bool need_rethrow) {
+            _need_rethrow = need_rethrow;
         }
         bool need_rethrow() {
             return _need_rethrow;

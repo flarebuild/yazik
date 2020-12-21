@@ -88,6 +88,10 @@ namespace promises {
 
         std::experimental::coroutine_handle<>
         propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+            if (!_continuation.need_rethrow()) {
+                _destroyed = true;
+            }
+
             std::experimental::coroutine_handle<> handle;
             if (_continuation.can_propagate()) {
                 handle =  _continuation.propagate_error(error);
@@ -96,7 +100,6 @@ namespace promises {
             }
 
             if (!_continuation.need_rethrow()) {
-                _destroyed = true;
                 self_h.destroy();
             } else {
                 set_error(std::forward<Error>(error));
@@ -191,11 +194,18 @@ namespace promises {
     };
 
     template<typename T, typename Error>
-    class TaskAwaitableWhenReady
-    : public ErrorPropagationAwaitable<T, Error> {
-    public:
-        using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
-        void await_resume() const noexcept {}
+    struct NoErrorPropagationAwaitable: TaskAwaitableBase<T, Error> {
+        using TaskAwaitableBase<T, Error>::TaskAwaitableBase;
+
+        std::experimental::coroutine_handle<> await_suspend(
+            std::experimental::coroutine_handle<> awaiting_coroutine
+        ) noexcept {
+            this->_coroutine.promise().template set_continuation<void>(
+                (std::experimental::coroutine_handle<>)this->_coroutine,
+                awaiting_coroutine
+            );
+            return this->_coroutine;
+        }
     };
 
 	/// \brief
@@ -313,13 +323,17 @@ namespace promises {
 		/// \brief
 		/// Returns an awaitable that will await completion of the task without
 		/// attempting to retrieve the result.
-		TaskAwaitableWhenReady<T, Error> when_ready() const noexcept {
-			return { _coroutine };
+		auto when_ready() const noexcept {
+		    struct Awaitable: NoErrorPropagationAwaitable<T, Error> {
+		        using NoErrorPropagationAwaitable<T, Error>::NoErrorPropagationAwaitable;
+		        void await_resume() const noexcept {}
+		    };
+			return Awaitable { _coroutine };
 		}
 
 		auto wrapped() const noexcept {
-		    struct Awaitable : ErrorPropagationAwaitable<T, Error> {
-				using ErrorPropagationAwaitable<T, Error>::ErrorPropagationAwaitable;
+		    struct Awaitable: NoErrorPropagationAwaitable<T, Error> {
+                using NoErrorPropagationAwaitable<T, Error>::NoErrorPropagationAwaitable;
 
                 Result<T, Error> await_resume() {
                     if (!this->_coroutine) {

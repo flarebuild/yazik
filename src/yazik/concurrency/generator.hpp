@@ -138,10 +138,10 @@ namespace promises {
 
         GeneratorIterator& operator++() {
             _coroutine.resume();
-            auto& result = _coroutine.promise().result();
-            if (!result) {
-                throw std::move(result.error());
-            }
+//            auto& result = _coroutine.promise().result();
+//            if (!result) {
+//                throw std::move(result.error());
+//            }
             return *this;
         }
 
@@ -190,7 +190,7 @@ namespace promises {
 		Generator(const Generator& other) = delete;
 
 		~Generator() {
-			if (_coroutine) {
+			if (_coroutine && !_coroutine.done()) {
 				_coroutine.destroy();
 			}
 		}
@@ -205,10 +205,10 @@ namespace promises {
 				_coroutine.resume();
 			}
 
-            auto& result = _coroutine.promise().result();
-            if (!result) {
-                throw std::move(result.error());
-            }
+//            auto& result = _coroutine.promise().result();
+//            if (!result) {
+//                throw std::move(result.error());
+//            }
 
 			return iterator{ _coroutine };
 		}
