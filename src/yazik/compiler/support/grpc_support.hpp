@@ -326,9 +326,7 @@ namespace yazik::compiler::grpc_support {
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
             }
-            if (!async_stream.status().is_ok())
-                co_await async_stream.status().as_broken_task();
-
+            co_await async_stream.result();
             co_return;
         }
 
