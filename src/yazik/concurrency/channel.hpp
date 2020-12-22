@@ -77,6 +77,10 @@ namespace promises {
 
         std::experimental::coroutine_handle<>
         propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
+            if (!_continuation.need_rethrow()) {
+                _destroyed = true;
+            }
+
             std::experimental::coroutine_handle<> handle;
             if (_continuation.can_propagate()) {
                 handle =  _continuation.propagate_error(error);
@@ -85,7 +89,6 @@ namespace promises {
             }
 
             if (!_continuation.need_rethrow()) {
-                _destroyed = true;
                 self_h.destroy();
             } else {
                 set_error(std::forward<Error>(error));
