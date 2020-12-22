@@ -81,7 +81,7 @@ namespace yazik::concurrency {
         ) {
             co_await schedule_delayed(delay);
             if (token->is_cancelled())
-                co_await yaz_fail_f("cancelled");
+                co_await yaz_fail("cancelled");
             co_return;
         }
     };
