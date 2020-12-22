@@ -65,6 +65,8 @@ namespace yazik::rpc::grpc {
 
     void GrpcQueueAction::proceed(const concurrency::cancel_token_ptr& is_cancelled) {
         yaz_defer { delete this; };
+        if (!is_ok())
+            return;
         _action.execute(is_cancelled);
     }
 

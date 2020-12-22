@@ -38,16 +38,15 @@ namespace yazik::rpc::grpc {
     }
 
     void Runtime::stop() {
+        _server->Shutdown();
         for (auto& worker: _workers)
             worker->stop();
     }
 
     Future<> Runtime::wait() {
-//        _server->Wait();
         for (auto& worker: _workers)
             co_await worker->wait();
-
-        _server->Shutdown();
+        _server->Wait();
         co_return;
     }
 

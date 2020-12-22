@@ -46,7 +46,8 @@ def Method::write_grpc_handles() {
             [ "Unit unit", "GrpcCtx::grpc_service_t* service", "const scheduler_ptr_t& scheduler" ], [],
             fun [this] () {
                 wl("auto payload = payload_t { scheduler };")
-                wl("co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
+                wl("bool can_proceed = co_await payload.request(service, &${ this.service().name() }::AsyncService::Request${ this.name() });")
+                wl("if (!can_proceed) co_return;")
                 wl("spawn(unit, service, scheduler);")
                 wl("co_await payload.run(unit).wrapped();")
                 wl("co_return;")

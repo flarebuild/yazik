@@ -31,8 +31,8 @@ namespace yazik::compiler::grpc_support {
         {}
 
     public:
-        rpc::RpcTask<> step() noexcept {
-            co_await _stepper.step($yaz_debug(s_handle_id.c_str()));
+        rpc::RpcTask<bool> step() noexcept {
+            co_return co_await _stepper.step($yaz_debug(s_handle_id.c_str()));
         }
 
         inline void on_start(Unit& unit) {
@@ -94,7 +94,7 @@ namespace yazik::compiler::grpc_support {
             void*
         );
 
-        rpc::RpcTask<> request(
+        rpc::RpcTask<bool> request(
             typename Ctx::grpc_service_t* service,
             request_fn_t request_fn
         ) noexcept {
@@ -109,8 +109,7 @@ namespace yazik::compiler::grpc_support {
                 this->_scheduler->server_queue(),
                 this->_stepper.tag()
             );
-            co_await Base::step();
-            co_return;
+            co_return co_await Base::step();
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts) noexcept {
@@ -220,7 +219,7 @@ namespace yazik::compiler::grpc_support {
             void*
         );
 
-        rpc::RpcTask<> request(
+        rpc::RpcTask<bool> request(
             typename Ctx::grpc_service_t* service,
             request_fn_t request_fn
         ) noexcept {
@@ -235,8 +234,7 @@ namespace yazik::compiler::grpc_support {
                 this->_scheduler->server_queue(),
                 this->_stepper.tag()
             );
-            co_await Base::step();
-            co_return;
+            co_return co_await Base::step();
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts, bool write_last) {
@@ -372,7 +370,7 @@ namespace yazik::compiler::grpc_support {
             void*
         );
 
-        rpc::RpcTask<> request(
+        rpc::RpcTask<bool> request(
             typename Ctx::grpc_service_t* service,
             request_fn_t request_fn
         ) noexcept {
@@ -386,8 +384,7 @@ namespace yazik::compiler::grpc_support {
                 this->_scheduler->server_queue(),
                 this->_stepper.tag()
             );
-            co_await Base::step();
-            co_return;
+            co_return co_await Base::step();
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts) {
