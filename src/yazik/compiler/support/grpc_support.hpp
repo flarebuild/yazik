@@ -45,13 +45,12 @@ namespace yazik::compiler::grpc_support {
                 unit.on_finish(_ctx, sts);
         }
 
-        rpc::RpcTask<> step_checked(Unit& unit) noexcept {
+        rpc::RpcTask<> step_checked(Unit& unit) noexcept {\
             if (co_await _stepper.step($yaz_debug(s_handle_id.c_str())))
                 co_return;
 
-            auto sts = rpc::RpcStatus::cancelled();
-            on_finish(unit, sts);
-            co_await sts.as_broken_task();
+            co_await rpc::RpcStatus::cancelled()
+                .as_broken_task();
         }
 
         rpc::RpcTask<> identify(Unit& unit, auto& request) noexcept {
@@ -286,6 +285,9 @@ namespace yazik::compiler::grpc_support {
 
         rpc::RpcTask<> process_sync_stream(Unit& unit, rpc::RpcGenerator<typename Ctx::resp_ok_t>&& sync_stream) {
             for (auto&& _: sync_stream) {
+                co_await Base::_scheduler->ensure_on($yaz_debug(
+                    Base::s_handle_id.c_str()
+                ));
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
             }
