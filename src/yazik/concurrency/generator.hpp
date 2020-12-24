@@ -190,7 +190,7 @@ namespace promises {
 		Generator(const Generator& other) = delete;
 
 		~Generator() {
-			if (_coroutine && !_coroutine.done()) {
+			if (_coroutine) {
 				_coroutine.destroy();
 			}
 		}

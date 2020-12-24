@@ -178,8 +178,6 @@ namespace yazik::rpc::grpc {
         Result<void> start() override;
         void stop() override;
         void wait() override;
-
-        Future<> on_stop();
     };
 
     class GrpcServerQueueThreadScheduler

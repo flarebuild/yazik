@@ -30,9 +30,14 @@ namespace yazik::concurrency {
             bool strict
         ) {
             schedule_periodic_impl(
-                [_l_move(clbk),token] {
-                    if (token->is_cancelled())
+                [
+                    clbk = unique_function<void()> { clbk },
+                    _l_move(token)
+                ] () mutable {
+                    if (token->is_cancelled()) {
+                        clbk = nullptr;
                         return false;
+                    }
                     clbk();
                     return true;
                 },

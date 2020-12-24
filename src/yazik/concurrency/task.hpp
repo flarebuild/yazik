@@ -40,7 +40,6 @@ namespace promises {
     protected:
 
         std::optional<Result<T, Error>> _result;
-        bool _destroyed = false;
         TaskPromiseBase() = default;
     public:
 
@@ -88,10 +87,6 @@ namespace promises {
 
         std::experimental::coroutine_handle<>
         propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
-            if (!_continuation.need_rethrow()) {
-                _destroyed = true;
-            }
-
             std::experimental::coroutine_handle<> handle;
             if (_continuation.can_propagate()) {
                 handle =  _continuation.propagate_error(error);
@@ -99,17 +94,11 @@ namespace promises {
                 handle = _continuation.continuation_handle();
             }
 
-            if (!_continuation.need_rethrow()) {
-                self_h.destroy();
-            } else {
+            if (_continuation.need_rethrow()) {
                 set_error(std::forward<Error>(error));
             }
 
             return handle;
-        }
-
-        bool destroyed() {
-            return _destroyed;
         }
 
         std::optional<Result<T, Error>>& result() {
@@ -247,7 +236,7 @@ namespace promises {
 
 		/// Frees resources used by this task.
 		~Task() {
-			if (_coroutine && !_coroutine.done() && !_coroutine.promise().destroyed() ) {
+			if (_coroutine) {
 				_coroutine.destroy();
 			}
 		}

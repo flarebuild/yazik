@@ -37,6 +37,7 @@ template <typename Fn>
 rpc::RpcResult<> eval_gen(Fn&& fn) {
     auto gen = fn();
     for (auto _: gen) {}
+    co_await gen.result();
     co_return;
 }
 

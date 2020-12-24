@@ -6,22 +6,6 @@
 #include <yazik/utility/lambda_continuation.hpp>
 #include <yazik/utility/utility_defs.hpp>
 
-//#ifndef NDEBUG
-//void grpc_cq_internal_ref(grpc_completion_queue* cc, const char* reason,
-//                          const char* file, int line);
-//void grpc_cq_internal_unref(grpc_completion_queue* cc, const char* reason,
-//                            const char* file, int line);
-//#define GRPC_CQ_INTERNAL_REF(cc, reason) \
-//  grpc_cq_internal_ref(cc, reason, __FILE__, __LINE__)
-//#define GRPC_CQ_INTERNAL_UNREF(cc, reason) \
-//  grpc_cq_internal_unref(cc, reason, __FILE__, __LINE__)
-//#else
-//void grpc_cq_internal_ref(grpc_completion_queue* cc);
-//void grpc_cq_internal_unref(grpc_completion_queue* cc);
-//#define GRPC_CQ_INTERNAL_REF(cc, reason) grpc_cq_internal_ref(cc)
-//#define GRPC_CQ_INTERNAL_UNREF(cc, reason) grpc_cq_internal_unref(cc)
-//#endif
-
 namespace {
 
 #ifdef YA_DEBUG
@@ -331,7 +315,8 @@ namespace yazik::rpc::grpc {
 
     GrpcQueueThreadScheduler::~GrpcQueueThreadScheduler() {
         stop();
-        wait();
+        if (_thread_id != concurrency::thread_idx())
+            wait();
     }
 
     const std::optional<uint64_t>& GrpcQueueThreadScheduler::thread_id() const {
@@ -342,7 +327,6 @@ namespace yazik::rpc::grpc {
         _thread_id = concurrency::thread_idx();
         while(step() || !check_need_stop());
         while(step());
-        _on_stop.set_value();
     }
 
     Result<void> GrpcQueueThreadScheduler::start() {
@@ -358,14 +342,11 @@ namespace yazik::rpc::grpc {
     }
 
     void GrpcQueueThreadScheduler::wait() {
-        if (_thread && _thread->joinable()) _thread->join();
+        if (_thread && _thread->joinable())
+            _thread->join();
         _thread.reset();
         _thread_id = {};
         _need_cancel.reset();
-    }
-
-    Future<> GrpcQueueThreadScheduler::on_stop() {
-        return _on_stop.get_future();
     }
 
     GrpcServerQueueThreadScheduler::GrpcServerQueueThreadScheduler(std::unique_ptr<::grpc::ServerCompletionQueue> queue)

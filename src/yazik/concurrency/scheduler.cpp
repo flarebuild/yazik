@@ -55,11 +55,10 @@ namespace yazik::concurrency {
             );
         }
 
-        struct PeriodicTimerControl {
+        struct PeriodicTimerControl: utility::ref_counted {
             ::boost::asio::steady_timer timer;
             concurrency::unique_function<bool()> clbk;
             std::chrono::nanoseconds period;
-            std::function<void(const boost::system::error_code&)> tick;
 
             PeriodicTimerControl(
                 ::boost::asio::io_service& io,
@@ -72,32 +71,40 @@ namespace yazik::concurrency {
             {
                 timer.expires_from_now(period);
             }
+
+            ~PeriodicTimerControl() override {
+                $breakpoint_hint
+            }
         };
 
-        void schedule_periodic_impl(
-            concurrency::unique_function<bool()>&& clbk,
-            std::chrono::nanoseconds period,
+        static unique_function<void (const boost::system::error_code&)> periodic_tick(
+            intrusive_ptr<PeriodicTimerControl> control,
             bool strict
-        ) override {
-            auto control = std::make_shared<PeriodicTimerControl>(
-                _io,
-                std::move(clbk),
-                period
-            );
-            control->tick = [control, strict](const boost::system::error_code&) mutable {
+        ) {
+            return [_l_move(control), strict] (const boost::system::error_code&) {
                 if (!control->clbk()) {
-                    control->tick = nullptr;
                     return;
                 }
                 if (strict)
                     control->timer.expires_at(control->timer.expires_at() + control->period);
                 else
                     control->timer.expires_from_now(control->period);
+                control->timer.async_wait(periodic_tick(std::move(control), strict));
+            };
+        }
 
-                control->timer.async_wait(control->tick);
+        void schedule_periodic_impl(
+            concurrency::unique_function<bool()>&& clbk,
+            std::chrono::nanoseconds period,
+            bool strict
+        ) override {
+            intrusive_ptr control = new PeriodicTimerControl {
+                _io,
+                std::move(clbk),
+                period
             };
             control->timer.expires_from_now(period);
-            control->timer.async_wait(control->tick);
+            control->timer.async_wait(periodic_tick(std::move(control), strict));
         }
 
         void mark_thread() noexcept override {
@@ -147,7 +154,8 @@ namespace yazik::concurrency {
     public:
         ~AsioThreadScheduler() {
             stop();
-            wait();
+            if (_thread_id != concurrency::thread_idx())
+                wait();
         }
 
         Result<void> start() override {

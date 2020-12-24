@@ -168,13 +168,3 @@ namespace experimental {
     };
 } // end of ::std::experimental namespace
 } // end of ::std namespace
-
-//#define yaz_ok(...) ( ::yazik::detail::yaz_ok(__VA_ARGS__) )
-
-//#define yaz_fail(pattern, ...) \
-//    ::yazik::detail::fail( \
-//        do_format( \
-//            "{}: {}", __func__, \
-//            do_format(pattern, ##__VA_ARGS__) \
-//        ) \
-//    )

@@ -21,7 +21,7 @@ namespace yazik::rpc::grpc {
 
         Future<> start();
         void stop();
-        Future<> wait();
+        void wait();
 
     public:
 

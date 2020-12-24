@@ -1,5 +1,6 @@
 #include <yazik/testlib/yaz_test_macros.hpp>
 #include <yazik/utility/utility_defs.hpp>
+#include <yazik/concurrency/channel.hpp>
 
 using namespace yazik;
 
@@ -49,7 +50,7 @@ OneWayTask oneway_failed_task(
     TestCountedObj obj2;
 }
 
-YAZ_F_TEST_CASE("OneWay task", "[utility/memory]") {
+YAZ_F_TEST_CASE("OneWay test", "[utility/memory]") {
     {
         concurrency::CoroEvent ev;
         oneway_task(__scheduler, ev);
@@ -61,6 +62,73 @@ YAZ_F_TEST_CASE("OneWay task", "[utility/memory]") {
         oneway_failed_task(__scheduler, ev);
         co_await ev;
         co_await __scheduler->schedule_delayed(std::chrono::milliseconds{10});
+        REQUIRE(s_counter == 0);
+    }
+}
+
+Channel<int> channel_ok() {
+    TestCountedObj obj;
+    for (int i: views::ints(0, 10))
+        co_yield i;
+    co_return;
+}
+
+Channel<int> channel_fail() {
+    TestCountedObj obj;
+    for (int i: views::ints(0, 10))
+        co_yield i;
+    co_await yaz_fail("oops");
+    co_return;
+}
+
+template <typename Fn>
+Task<> eval_channel(Fn&& fn) {
+    TestCountedObj obj;
+    auto gen = fn();
+    for co_await(auto _: gen) {}
+    co_return;
+}
+
+YAZ_F_TEST_CASE("Channel test", "[utility/memory]") {
+    {
+        co_await eval_channel(channel_ok).wrapped();
+        REQUIRE(s_counter == 0);
+    } {
+        co_await eval_channel(channel_fail).wrapped();
+        REQUIRE(s_counter == 0);
+    }
+}
+
+Result<> ok_result() {
+    TestCountedObj obj;
+    static bool s_is_first_run = true;
+    if (s_is_first_run) {
+        s_is_first_run = false;
+        co_await ok_result();
+    }
+
+    co_return;
+}
+
+Result<> fail_result() {
+    TestCountedObj obj;
+    static bool s_is_first_run = true;
+    if (s_is_first_run) {
+        s_is_first_run = false;
+        co_await ok_result();
+    } else {
+        co_await yaz_fail("oops");
+    }
+
+    co_return;
+}
+
+TEST_CASE("Result test", "[utility/memory]") {
+    {
+        ok_result();
+        REQUIRE(s_counter == 0);
+    } {
+        fail_result();
         REQUIRE(s_counter == 0);
     }
 }

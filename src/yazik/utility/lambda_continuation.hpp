@@ -37,6 +37,7 @@ namespace yazik::utility {
         }
     };
 
+
     template<typename T>
     class DoImpl {
         using continuation_t = std::function<void (T)>;
@@ -67,6 +68,14 @@ namespace yazik::utility {
         Result<void> apply(continuation_t&& continuation);
     };
 
+    class OnThreadExitImpl {
+        using continuation_t = std::function<void ()>;
+
+    public:
+
+        void apply(continuation_t&& continuation);
+    };
+
     template<typename Impl, typename Fn>
     auto operator <<= (LambdaContinuationMark<Impl>&& impl, Fn fn) {
         using ret_t = decltype(impl.apply(std::move(fn)));
@@ -91,3 +100,6 @@ namespace yazik::utility {
 #define yaz_with(name, ...) \
     ::yazik::utility::LambdaContinuationMark<::yazik::utility::WithImpl<decltype(__VA_ARGS__)>>{__VA_ARGS__} \
         <<= [&](decltype(__VA_ARGS__)& name)
+
+#define yaz_on_thread_exit \
+    ::yazik::utility::LambdaContinuationMark<::yazik::utility::OnThreadExitImpl>{} <<= [&]

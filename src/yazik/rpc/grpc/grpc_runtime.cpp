@@ -45,7 +45,7 @@ namespace yazik::rpc::grpc {
 
     Future<> Runtime::wait() {
         for (auto& worker: _workers)
-            co_await worker->wait();
+            worker->wait();
         _server->Wait();
         co_return;
     }

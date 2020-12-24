@@ -10,7 +10,7 @@
 
 namespace yazik {
 
-    template<typename Payload, typename Error>
+    template<typename Payload, typename Error = string>
     class Channel;
 
 namespace promises {
@@ -28,7 +28,6 @@ namespace promises {
         friend class ChannelYieldOp<Error>;
         friend class ChannelAdvanceOp<Payload, Error>;
 
-        bool _destroyed = false;
         Payload* _value_ptr = nullptr;
         std::optional<Result<Payload, Error>> _result;
 
@@ -38,10 +37,6 @@ namespace promises {
     public:
         ChannelPromise() = default;
         ~ChannelPromise() = default;
-
-        bool destroyed() {
-            return _destroyed;
-        }
 
         std::optional<Result<Payload, Error>>& result() {
             return _result;
@@ -77,10 +72,6 @@ namespace promises {
 
         std::experimental::coroutine_handle<>
         propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
-            if (!_continuation.need_rethrow()) {
-                _destroyed = true;
-            }
-
             std::experimental::coroutine_handle<> handle;
             if (_continuation.can_propagate()) {
                 handle =  _continuation.propagate_error(error);
@@ -88,9 +79,7 @@ namespace promises {
                 handle = _continuation.continuation_handle();
             }
 
-            if (!_continuation.need_rethrow()) {
-                self_h.destroy();
-            } else {
+            if (_continuation.need_rethrow()) {
                 set_error(std::forward<Error>(error));
             }
 
@@ -306,7 +295,7 @@ namespace promises {
         friend class ChannelGroup<Payload, Error>;
 
         inline void destroy() noexcept {
-            if (_handle && !_handle.promise().destroyed())
+            if (_handle)
                 _handle.destroy();
         }
 

@@ -22,8 +22,8 @@ namespace yazik::rpc::grpc {
         _scheduler->stop();
     }
 
-    Future<> RuntimeWorker::wait() {
-        return _scheduler->on_stop();
+    void RuntimeWorker::wait() {
+        _scheduler->wait();
     }
 
     queue_scheduler_ptr_t RuntimeWorker::scheduler() noexcept {

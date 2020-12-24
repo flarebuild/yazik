@@ -12,9 +12,9 @@ namespace yazik::utility {
     /// @relates intrusive_ptr
     class ref_counted {
     public:
-        virtual ~ref_counted() {}
+        virtual ~ref_counted() = default;
 
-        inline ref_counted() {}
+        inline ref_counted() = default;
         inline ref_counted(const ref_counted&)
         : rc_(1)
         {}
