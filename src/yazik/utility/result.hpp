@@ -77,6 +77,7 @@ namespace promises {
         std::experimental::coroutine_handle<>
         propagate_error_impl(Error&& error, std::experimental::coroutine_handle<>& self_h) override {
             set_error(std::forward<Error>(error));
+            self_h.destroy();
             return nullptr;
         }
 
