@@ -86,6 +86,7 @@ join(cxx_flags_str " " ${cxx_flags_list} )
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${cxx_flags_str})
 
 add_definitions(-DGRPC_BAZEL_BUILD)
+
 add_compile_options(
     -Wno-ambiguous-reversed-operator
     -Wno-return-stack-address

@@ -2,6 +2,7 @@
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/alarm.h>
+#include <yazik/utility/debugging/trace_memory_allocations.hpp>
 #include <yazik/utility/result.hpp>
 #include <yazik/concurrency/scheduler.hpp>
 
@@ -17,6 +18,8 @@ namespace yazik::rpc::grpc {
         bool is_ok() const;
         void* self_tagged();
         virtual ~IGrpcQueueAction() {}
+
+        $yaz_traced_alloc(IGrpcQueueAction)
     };
 
     class GrpcQueueAction
@@ -99,6 +102,8 @@ namespace yazik::rpc::grpc {
             return _descr;
         }
     )
+
+        $yaz_traced_alloc(GrpcQueueTag)
     };
 
     class GrpcQueueScheduler

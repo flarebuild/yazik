@@ -1,5 +1,5 @@
 #pragma once
-
+#include <yazik/utility/debugging/trace_memory_allocations.hpp>
 #include <yazik/utility/macro.hpp>
 #include <yazik/concurrency/baton.hpp>
 
@@ -20,6 +20,8 @@ namespace yazik::concurrency {
             : data{ std::move(data) }
             , next{ nullptr }
             {}
+
+            $yaz_traced_alloc(Node)
         };
         std::atomic<Node*> _head{nullptr};
 
