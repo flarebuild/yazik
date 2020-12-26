@@ -11,13 +11,16 @@
 
 namespace yazik::utility::debugging {
 
-    ::folly::AtomicUnorderedInsertMap<std::atomic_size_t*, string> s_counter_to_name { 1'024 };
+    std::unique_ptr<::folly::AtomicUnorderedInsertMap<std::atomic_size_t*, string>> s_counter_to_name;
 
     void print_traced() {
+        if (!s_counter_to_name)
+            return;
+
         std::stringstream ss;
         ss << std::endl;
         ss << "+++++++++++++ traced allocations: ++++++++++++++" << std::endl;
-        for (auto it = s_counter_to_name.cbegin(); it != s_counter_to_name.cend(); ++it)
+        for (auto it = s_counter_to_name->cbegin(); it != s_counter_to_name->cend(); ++it)
             ss << it->second << ": " << it->first->load() << std::endl;
         ss << "++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
         L::debug(ss.str());
@@ -27,7 +30,11 @@ namespace yazik::utility::debugging {
         void *ptr = std::malloc(size);
         if (!ptr)
             throw std::bad_alloc{};
-        s_counter_to_name.findOrConstruct(
+
+        if (!s_counter_to_name)
+            s_counter_to_name = std::make_unique<::folly::AtomicUnorderedInsertMap<std::atomic_size_t*, string>>(1'024);
+
+        s_counter_to_name->findOrConstruct(
             counter,
             [&] (void* raw) {
                 new (raw) string { ::folly::demangle(type) };
