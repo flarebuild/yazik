@@ -64,6 +64,8 @@ namespace yazik::rpc {
             return { Status::Cancelled, "Cancelled" };
         }
 
+        inline bool is_cancelled() noexcept { return Super::_value == Status::Cancelled; }
+
         static inline RpcStatus already_exist(string error = "") noexcept {
             return { Status::AlreadyExist, error };
         }
