@@ -112,10 +112,10 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts) noexcept {
-            Base::on_finish(unit, sts);
             co_await Base::_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
+            Base::on_finish(unit, sts);
             if (!sts.is_ok()) {
                 _responder.FinishWithError(
                     rpc::grpc::grpc_from_rpc_status(sts),
@@ -237,10 +237,10 @@ namespace yazik::compiler::grpc_support {
         }
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts, bool write_last) {
-            Base::on_finish(unit, sts);
             co_await Base::_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
+            Base::on_finish(unit, sts);
             if (!sts.is_ok()) {
                 _responder.Finish(
                     rpc::grpc::grpc_from_rpc_status(sts),
@@ -391,10 +391,10 @@ namespace yazik::compiler::grpc_support {
 
         rpc::RpcTask<> finish(Unit& unit, rpc::RpcStatus sts) {
             _finished = true;
-            Base::on_finish(unit, sts);
             co_await Base::_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
+            Base::on_finish(unit, sts);
             if (!sts.is_ok()) {
                 _responder.FinishWithError(
                     rpc::grpc::grpc_from_rpc_status(sts),
