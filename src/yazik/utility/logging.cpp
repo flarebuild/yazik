@@ -25,7 +25,7 @@ namespace yazik::logging {
     }
 
     void do_log(LogLevel ll, const string& data) {
-        std::cout <<  c_log_level_str(ll) << ": " << data << std::endl;
+        std::cout << do_format("{}: {}\n", c_log_level_str(ll), data);
         if (ll == LogLevel::Crit)
             std::abort();
     }
