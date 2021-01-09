@@ -17,6 +17,8 @@ namespace yazik::rpc::grpc {
             return ::grpc::Status { ::grpc::StatusCode::ALREADY_EXISTS, sts.to_error_string().toStdString() };
         case RpcStatus::Status::InvalidArgument:
             return ::grpc::Status { ::grpc::StatusCode::INVALID_ARGUMENT, sts.to_error_string().toStdString() };
+        case RpcStatus::Status::TimeOut:
+            return ::grpc::Status { ::grpc::StatusCode::DEADLINE_EXCEEDED, sts.to_error_string().toStdString() };
         case RpcStatus::Status::NotFound:
             return ::grpc::Status { ::grpc::StatusCode::NOT_FOUND, sts.to_error_string().toStdString() };
         case RpcStatus::Status::NonAuthorized:
@@ -46,6 +48,8 @@ namespace yazik::rpc::grpc {
             return RpcStatus{ RpcStatusEnum::Cancelled, sts.error_message() };
         case ::grpc::StatusCode::INVALID_ARGUMENT:
             return RpcStatus{ RpcStatusEnum::InvalidArgument, sts.error_message() };
+        case ::grpc::StatusCode::DEADLINE_EXCEEDED:
+            return RpcStatus{ RpcStatusEnum::TimeOut, sts.error_message() };
         case ::grpc::StatusCode::ALREADY_EXISTS:
             return RpcStatus{ RpcStatusEnum::AlreadyExist, sts.error_message() };
         case ::grpc::StatusCode::NOT_FOUND:

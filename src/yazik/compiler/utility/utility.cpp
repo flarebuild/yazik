@@ -1334,6 +1334,10 @@ namespace yazik::compiler {
             "cpp_deserialized_buffer"
         );
         script.add_global_const(
+            const_var(std::string{"::yazik::compiler::rpc_support::MetadataProvider&"}),
+            "cpp_rpc_metadata_provider"
+        );
+        script.add_global_const(
             const_var(std::string{"!boost::di::aux::is_complete<Fn>::value || "}),
             "cpp_rpc_concept_pref"
         );

@@ -14,6 +14,7 @@ namespace yazik::rpc {
         Cancelled,
         AlreadyExist,
         InvalidArgument,
+        TimeOut,
         NotFound,
         NonAuthorized,
         ResourceExhausted,
@@ -31,6 +32,7 @@ namespace yazik::rpc {
         case RpcStatusEnum::Cancelled: return "cancelled";
         case RpcStatusEnum::AlreadyExist: return "already exist";
         case RpcStatusEnum::InvalidArgument: return "invalid argument";
+        case RpcStatusEnum::TimeOut: return "timeout";
         case RpcStatusEnum::NotFound: return "not found";
         case RpcStatusEnum::NonAuthorized: return "non authorized";
         case RpcStatusEnum::ResourceExhausted: return "resource exhausted";
@@ -73,6 +75,12 @@ namespace yazik::rpc {
         static inline RpcStatus invalid_argument(string error) noexcept {
             return { Status::InvalidArgument, std::move(error) };
         }
+
+        static inline RpcStatus timeout(string error) noexcept {
+            return { Status::TimeOut, std::move(error) };
+        }
+
+        inline bool is_timeout() noexcept { return Super::_value == Status::TimeOut; }
 
         static inline RpcStatus not_found(string error = "") noexcept {
             return { Status::NotFound, do_format("NotFound: {}", error) };

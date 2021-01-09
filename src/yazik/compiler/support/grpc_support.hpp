@@ -8,6 +8,50 @@
 
 namespace yazik::compiler::grpc_support {
 
+    class GrpcMetadataProvider
+    : public rpc_support::MetadataProvider {
+        ::grpc::ServerContext& _grpc_ctx;
+
+        static inline string_view transform_view(const ::grpc::string_ref grpc_ref) {
+            return { grpc_ref.data(), grpc_ref.size() };
+        }
+
+        static inline ::grpc::string_ref transform_view_back(string_view view) {
+            return { view.data(), view.size() };
+        }
+
+        static inline std::pair<string_view, string_view> transform_pair(
+            const std::pair<const ::grpc::string_ref, const grpc::string_ref>& input
+        ) {
+            return {
+                transform_view(input.first),
+                transform_view(input.second)
+            };
+        }
+
+        static inline string_view transform_pair_to_values(
+            const std::pair<const ::grpc::string_ref, const grpc::string_ref>& input
+        ) {
+            return transform_view(input.second);
+        }
+
+    public:
+
+        GrpcMetadataProvider(::grpc::ServerContext& grpc_ctx)
+        : _grpc_ctx { grpc_ctx }
+        {}
+
+        repeated_t<std::pair<string_view, string_view>> all() override {
+            return _grpc_ctx.client_metadata() | views::transform(transform_pair);
+        }
+
+        repeated_t<string_view> get(string_view key) override {
+            auto [b,e] = _grpc_ctx.client_metadata().equal_range(transform_view_back(key));
+            return ::ranges::make_subrange(b,e) | views::transform(transform_pair_to_values);
+        }
+
+    };
+
     template<typename Ctx, typename Unit>
     class PayloadBase {
     protected:
@@ -16,6 +60,7 @@ namespace yazik::compiler::grpc_support {
         rpc::grpc::server_queue_thread_scheduler_ptr_t _scheduler;
         rpc::grpc::GrpcTagStepper _stepper;
         ::grpc::ServerContext _grpc_ctx;
+        GrpcMetadataProvider _meta { _grpc_ctx };
         typename Ctx::output_pb_t _response_pb;
         typename Ctx::resp_ok_t _resp_ok_tag;
         Ctx _ctx;
@@ -26,7 +71,8 @@ namespace yazik::compiler::grpc_support {
         , _ctx {
             _scheduler,
             Ctx::output_pb_builder_spec_t::wrap(_response_pb)
-                .template layered<typename Ctx::resp_ok_t>(&_resp_ok_tag)
+                .template layered<typename Ctx::resp_ok_t>(&_resp_ok_tag),
+            _meta
         }
         {}
 

@@ -74,7 +74,16 @@ namespace yazik::compiler::grpc_support {
         prepare_fn_t _prepare_fn;
 
         friend class UnaryClient<Ctx>;
+        friend class UnaryClientControl<Ctx>;
         intrusive_ptr<UnaryClientControl<Ctx>> control(const rpc::grpc::queue_scheduler_ptr_t& scheduler);
+
+        response_reader_ptr_t create_reader(
+            ::grpc::ClientContext* ctx,
+            const input_pb_t& request,
+            ::grpc::CompletionQueue* cq
+        ) {
+            return ((*this->_stub.get()).*_prepare_fn)(ctx, request, cq);
+        }
 
     protected:
 
@@ -107,21 +116,30 @@ namespace yazik::compiler::grpc_support {
         output_pb_t _output;
         response_reader_ptr_t _reader;
 
-        using Base::Base;
-
         friend class UnaryClientFactory<Ctx>;
         friend class UnaryClient<Ctx>;
 
-        void set_reader(response_reader_ptr_t reader) noexcept {
-            _reader = std::move(reader);
-        }
-
+        UnaryClientFactory<Ctx>* _factory;
         rpc::RpcTask<output_ref_t> _task;
+
+        UnaryClientControl(
+            rpc::grpc::queue_scheduler_ptr_t scheduler,
+            UnaryClientFactory<Ctx>* factory
+        )
+        : Base { std::move(scheduler) }
+        , _factory { factory }
+        {}
 
         rpc::RpcTask<output_ref_t> do_task(intrusive_ptr<Self> guard) noexcept {
             co_await this->_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
+
+            _reader = _factory->create_reader(
+                &this->_client_context,
+                _input,
+                this->_scheduler->queue()
+            );
 
             _reader->StartCall();
             ::grpc::Status sts = ::grpc::Status::OK;
@@ -148,14 +166,7 @@ namespace yazik::compiler::grpc_support {
     intrusive_ptr<UnaryClientControl<Ctx>> UnaryClientFactory<Ctx>::control(
         const rpc::grpc::queue_scheduler_ptr_t& scheduler
     ) {
-        intrusive_ptr client = new  UnaryClientControl<Ctx>{ scheduler };
-        client->set_reader(
-            ((*this->_stub.get()).*_prepare_fn)(
-                this->grpc_ctx_of(client.get()),
-                &client->_input,
-                scheduler->queue()
-            )
-        );
+        intrusive_ptr client = new  UnaryClientControl<Ctx>{ scheduler, this };
         return client;
     }
 

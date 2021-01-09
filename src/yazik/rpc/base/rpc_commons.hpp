@@ -6,7 +6,8 @@
 #include <yazik/concurrency/generator.hpp>
 #include <yazik/concurrency/scheduler.hpp>
 
-namespace yazik::rpc {
+namespace yazik {
+namespace rpc {
 
     enum class RpcUnitType {
         UnarySync,
@@ -135,4 +136,10 @@ namespace yazik::rpc {
                         || c_stream_reader_client<Fn, Req, Res, Ctx>
                         || c_stream_writer_client<Fn, Req, Res, Ctx>;
 
-} // end of ::yazik::rpc namespace
+} // end of rpc namespace inside ::yazik
+
+    inline auto yaz_rpc_ok() noexcept {
+        return yaz_ok<rpc::RpcStatus>();
+    }
+
+} // end of ::yazik

@@ -15,10 +15,11 @@ def Method::write_ctx() {
         wl("using output_builder_t = ${ this.output().cpp_layered_builder_t("resp_ok_t") };")
         wl("${cpp_scheduler} scheduler;")
         wl("output_builder_t response;")
+        wl("${cpp_rpc_metadata_provider} meta;")
         w_cpp_constructor_impl_no_body(
             [ "inline", "Ctx" ],
-            [ "${cpp_scheduler} scheduler", "output_builder_t response" ], [],
-            [ "scheduler { std::move(scheduler) }", "response { std::move(response) }" ]
+            [ "${cpp_scheduler} scheduler", "output_builder_t response", "${cpp_rpc_metadata_provider} meta" ], [],
+            [ "scheduler { std::move(scheduler) }", "response { std::move(response) }", "meta { meta }" ]
         )
     })
 }

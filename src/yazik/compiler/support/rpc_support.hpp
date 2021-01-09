@@ -51,4 +51,11 @@ namespace yazik::compiler::rpc_support {
         { fn.identity() } -> concepts::c_just<string_view>;
     } && (c_identifiable_plain<Fn, Ctx, Req> || c_identifiable_result<Fn, Ctx, Req>);
 
+    struct MetadataProvider {
+        template <typename T>
+        using repeated_t = ::ranges::any_view<T>;
+        virtual repeated_t<std::pair<string_view, string_view>> all() = 0;
+        virtual repeated_t<string_view> get(string_view) = 0;
+    };
+
 } // end of ::yazik::compiler::rpc_support namespace

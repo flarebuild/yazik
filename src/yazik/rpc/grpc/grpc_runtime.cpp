@@ -38,9 +38,10 @@ namespace yazik::rpc::grpc {
     }
 
     void Runtime::stop() {
-        _server->Shutdown();
         for (auto& worker: _workers)
             worker->stop();
+        _server->Shutdown();
+        $breakpoint_hint
     }
 
     Future<> Runtime::wait() {
