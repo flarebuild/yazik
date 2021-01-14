@@ -18,8 +18,8 @@ namespace yazik {
     template <typename T>
     using vector = ::folly::fbvector<T>;
 
-    template <typename T>
-    using set = ::folly::F14FastSet<T>;
+    template <typename T, typename Hasher = ::folly::f14::DefaultHasher<T>>
+    using set = ::folly::F14FastSet<T, Hasher>;
 
     template <typename K, typename V>
     using map = ::folly::F14FastMap<K, V>;

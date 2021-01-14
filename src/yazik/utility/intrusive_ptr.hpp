@@ -253,3 +253,12 @@ namespace yazik {
     }
 
 } // end of ::yazik namespace
+
+namespace std {
+    template<typename T>
+    struct hash<::yazik::intrusive_ptr<T>> {
+        std::size_t operator()(const ::yazik::intrusive_ptr<T>& value) const noexcept {
+            return std::hash<T*>{}(value.get());
+        }
+    };
+}
