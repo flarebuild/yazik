@@ -264,6 +264,7 @@ namespace yazik::compiler::grpc_support {
         input_pb_t _input;
         response_reader_ptr_t _reader;
         std::atomic_bool _is_finished { false };
+        std::atomic_bool _is_started { false };
         std::optional<::grpc::Status> _finish_sts;
 
         friend class ServerStreamingClientFactory<Ctx>;
@@ -273,8 +274,6 @@ namespace yazik::compiler::grpc_support {
         rpc::RpcChannel<output_ref_t> _channel;
 
         rpc::RpcChannel<output_ref_t> do_channel(intrusive_ptr<Self> guard) noexcept {
-            yaz_defer { _is_finished = false; };
-
             co_await this->_scheduler->ensure_on($yaz_debug(
                 Base::s_handle_id.c_str()
             ));
@@ -286,6 +285,7 @@ namespace yazik::compiler::grpc_support {
             );
 
             _reader->StartCall(this->_stepper.tag());
+            _is_started = true;
             if (!co_await step_checked())
                 co_await rpc::RpcStatus::cancelled()
                     .as_broken();
@@ -312,6 +312,14 @@ namespace yazik::compiler::grpc_support {
         , _channel { do_channel({this}) }
         {}
 
+        OneWayTask release() {
+            if (_is_finished || !_is_started)
+                co_return;
+
+            intrusive_ptr guard = this;
+            co_await finish().when_ready();
+            co_return;
+        }
 
         using op_ret_t = typename input_builder_t::template layered_t<rpc::RpcChannel<output_ref_t>>;
 
@@ -385,9 +393,16 @@ namespace yazik::compiler::grpc_support {
         , _scheduler { std::move(scheduler) }
         {}
 
+        ~ServerStreamingClient() {
+            if (_cur_control)
+                _cur_control->release();
+        }
+
         Ctx& ctx() noexcept { return _ctx; }
 
         auto operator ()() {
+            if (_cur_control)
+                _cur_control->release();
             _cur_control =  _factory->control(_scheduler);
             return _cur_control->run();
         }
@@ -467,8 +482,13 @@ namespace yazik::compiler::grpc_support {
 
         using Base::Base;
 
-        virtual ~ClientStreamingClientControl() {
-            $breakpoint_hint
+        OneWayTask release() {
+            if (_is_finished || !_is_started)
+                co_return;
+
+            intrusive_ptr guard = this;
+            co_await finish().when_ready();
+            co_return;
         }
 
         friend class ClientStreamingClientFactory<Ctx>;
@@ -590,10 +610,17 @@ namespace yazik::compiler::grpc_support {
         , _scheduler { std::move(scheduler) }
         {}
 
+        ~ClientStreamingClient() {
+            if (_cur_control)
+                _cur_control->release();
+        }
+
         Ctx& ctx() noexcept { return _ctx; }
 
         auto operator ()() {
-            _cur_control =  _factory->control(_scheduler);
+            if (_cur_control)
+                _cur_control->release();
+            _cur_control = _factory->control(_scheduler);
             return _cur_control->run();
         }
 

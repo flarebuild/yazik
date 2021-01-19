@@ -286,8 +286,10 @@ namespace yazik::rpc::grpc {
     }
 
     void GrpcQueueScheduler::stop_impl() {
-        if (_need_cancel)
+        if (_need_cancel && !_need_cancel->is_cancelled()) {
+            _queue->Shutdown();
             _need_cancel->cancel();
+        }
     }
 
     ::grpc::CompletionQueue* GrpcQueueScheduler::queue() {
