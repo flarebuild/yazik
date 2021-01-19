@@ -327,11 +327,9 @@ namespace promises {
         Channel& operator=(const Channel&) = delete;
 
         Channel& operator=(Channel &&other) noexcept {
-            destroy();
             if (std::addressof(other) == this)
                 return *this;
-            if (_handle)
-                _handle.destroy();
+            destroy();
             _handle = other._handle;
             other._handle = nullptr;
             return *this;
