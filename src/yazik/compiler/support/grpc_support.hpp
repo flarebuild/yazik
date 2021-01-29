@@ -81,12 +81,19 @@ namespace yazik::compiler::grpc_support {
             co_return co_await _stepper.step($yaz_debug(s_handle_id.c_str()));
         }
 
+        inline void keep_alive(Unit& unit) {
+            if constexpr (compiler::rpc_support::c_has_keep_alive<Unit, Ctx>)
+                unit.keep_alive(_ctx);
+        }
+
         inline void on_start(Unit& unit) {
+            keep_alive(unit);
             if constexpr (::yazik::compiler::rpc_support::c_has_on_start<Unit, Ctx>)
                 unit.on_start(_ctx);
         }
 
         inline void on_finish(Unit& unit, rpc::RpcStatus sts) {
+            keep_alive(unit);
             if constexpr (::yazik::compiler::rpc_support::c_has_on_finish<Unit, Ctx>)
                 unit.on_finish(_ctx, sts);
         }
@@ -336,6 +343,7 @@ namespace yazik::compiler::grpc_support {
                 ));
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
+                Base::keep_alive(unit);
             }
             co_await sync_stream.result();
             co_return;
@@ -371,6 +379,7 @@ namespace yazik::compiler::grpc_support {
                 ));
                 Base::_responder.Write(Base::_response_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
+                Base::keep_alive(unit);
             }
             co_await async_stream.result();
             co_return;
@@ -479,6 +488,7 @@ namespace yazik::compiler::grpc_support {
                 typename Ctx::input_pb_t _request_pb;
                 _responder.Read(&_request_pb, Base::_stepper.tag());
                 co_await Base::step_checked(unit);
+                Base::keep_alive(unit);
                 co_yield Ctx::input_pb_spec_t::wrap(_request_pb);
             }
             co_return;

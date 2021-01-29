@@ -28,6 +28,16 @@ namespace yazik::compiler::rpc_support {
         fn.on_finish(ctx, rpc::RpcStatus::cancelled());
     };
 
+    template <
+        typename Fn,
+        typename Ctx
+    > concept c_has_keep_alive = requires (
+        Fn fn,
+        Ctx& ctx
+    ) {
+        fn.keep_alive(ctx);
+    };
+
     template <typename Fn, typename Ctx, typename Req>
     concept c_identifiable_plain = requires(Fn fn, Ctx& ctx, Req& req) {
         { fn.identify(ctx, req) } -> concepts::c_same_as<void>;

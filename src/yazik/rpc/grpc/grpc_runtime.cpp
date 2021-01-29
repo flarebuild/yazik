@@ -22,6 +22,10 @@ namespace yazik::rpc::grpc {
         return _workers.back();
     }
 
+    const vector<std::shared_ptr<RuntimeWorker>>& Runtime::workers() {
+        return _workers;
+    }
+
     bool Runtime::has_ops_since_last_check() noexcept {
         return ranges::any_of(_workers, [](auto& w) {
             return w->scheduler()->has_ops_since_last_check();

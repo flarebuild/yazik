@@ -50,8 +50,10 @@ def Method::write_rpc_concepts() {
 }
 
 def Method::write_rpc_calls() {
+    wl("class UnitTag;")
     w_cpp_struct("SyncCall", fun [this]() {
         wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_sync() };")
+        wl("using tag_t = UnitTag;")
         wl("using context_t = Ctx;")
         wl("using request_t = ${this.cpp_rpc_call_request_sync()};")
         w_cpp_commented(fun [this] () {
@@ -68,6 +70,7 @@ def Method::write_rpc_calls() {
     })
     w_cpp_struct("AsyncCall", fun [this]() {
         wl("constexpr static auto s_rpc_type = ${ this.cpp_rpc_type_async() };")
+        wl("using tag_t = UnitTag;")
         wl("using context_t = Ctx;")
         wl("using request_t = ${this.cpp_rpc_call_request_async()};")
         w_cpp_commented(fun [this] () {

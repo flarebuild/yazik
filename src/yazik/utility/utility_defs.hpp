@@ -14,6 +14,8 @@
 
 #include <range/v3/all.hpp>
 
+#include <yazik/utility/concepts.hpp>
+
 namespace yazik {
     template <typename T>
     using vector = ::folly::fbvector<T>;

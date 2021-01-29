@@ -8,7 +8,7 @@
 namespace yazik::rpc::grpc {
 
     class RuntimeWorker;
-    class Runtime {
+    class Runtime: public utility::ref_counted {
         std::optional<::grpc::ServerBuilder> _builder;
         std::unique_ptr<::grpc::Server> _server;
         vector<std::shared_ptr<RuntimeWorker>> _workers;
@@ -46,11 +46,15 @@ namespace yazik::rpc::grpc {
             return (Service*)it->second.get();
         }
 
+        const vector<std::shared_ptr<RuntimeWorker>>& workers();
+
         bool has_ops_since_last_check() noexcept;
 
         Future<> start();
         void stop();
         Future<> wait();
     };
+
+    using runtime_ptr = intrusive_ptr<Runtime>;
 
 } // end of yazik::rpc::grpc namespace

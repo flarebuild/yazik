@@ -2,6 +2,7 @@
 
 #include <type_traits>
 #include <iterator>
+#include <optional>
 
 namespace yazik::concepts {
 
@@ -40,5 +41,15 @@ namespace yazik::concepts {
     concept c_with_c_str = requires(const T& a) {
         { a.c_str() } -> c_same_as<const char*>;
     };
+
+    template <class T>
+    concept c_has_value_type = requires() {
+        { typename T::value_type{} };
+    };
+
+    template <class T>
+    concept c_is_optional = c_has_value_type<T>
+                         && c_same_as<T, std::optional<typename T::value_type>>;
+
 
 } // end of ::yazik::concepts namespace
