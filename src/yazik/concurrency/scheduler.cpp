@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 
 #include "scheduler.hpp"
+#include <yazik/concurrency/event.hpp>
 
 namespace yazik::concurrency {
 
@@ -53,6 +54,7 @@ namespace yazik::concurrency {
                 (const ::boost::system::error_code&) mutable
                 { clbk(); }
             );
+            $breakpoint_hint
         }
 
         struct PeriodicTimerControl: utility::ref_counted {
@@ -117,14 +119,21 @@ namespace yazik::concurrency {
             return has;
         }
 
-        Future<> run_until_done(Future<> work) override {
+        Result<> run_until_done(Task<> work) override {
             mark_thread();
             _need_cancel = new CancellationTokenAtomic;
             auto io_work = ::boost::asio::io_service::work { _io };
+            Result<> result;
+            concurrency::Event ev;
+            [&] (Task<> work) -> OneWayTask {
+                co_await on(YAZ_LOCATION_STR);
+                result = co_await work.wrapped();
+                ev.set();
+            } (std::move(work));
             do {
                 _has_ops_since_last_check = _io.run_for(std::chrono::milliseconds{100});
-            } while (!work.is_ready());
-            return work;
+            } while (!ev.is_set());
+            return result;
         }
 
         const std::optional<uint64_t>& thread_id() const override {

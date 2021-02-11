@@ -2,6 +2,7 @@
 #include "event.hpp"
 
 #include <folly/system/ThreadId.h>
+#include <folly/synchronization/HazptrDomain.h>
 
 namespace yazik {
 namespace concurrency {
@@ -136,6 +137,10 @@ namespace concurrency {
         return {this, true $yaz_debug(, descr)};
     }
 
+    void Executor::add(unique_function<void ()> fn) {
+        dispatch_impl(std::move(fn) YAZ_PRE_COMMA_LOCATION_STR);
+    }
+
     bool ThreadIdHolder::is_on() noexcept {
         return thread_id() == thread_idx();
     }
@@ -231,6 +236,16 @@ namespace concurrency {
     }
 
     const executor_ptr_t IExecutorProvider::s_null_executor = nullptr;
+
+    executor_ptr_t s_default_ex;
+    ::folly::Executor* default_executor_for_folly() {
+        return s_default_ex.get();
+    }
+
+    void mark_default_executor(const executor_ptr_t& ex) {
+        s_default_ex = ex;
+        ::folly::default_hazptr_domain().set_executor(default_executor_for_folly);
+    }
 
 } // end of ::yazik::concurrency namespace
 } // end of ::yazik namespace

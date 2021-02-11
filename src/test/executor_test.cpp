@@ -119,14 +119,14 @@ TEST_CASE( "Executor with future await test", "[concurrency/executor]" ) {
             co_await promise2.get_future();;
             co_return;
         } YAZ_PRE_COMMA_LOCATION_STR
-    ).fut();
+    );
     auto future2 = executor->dispatch_future(
         [&promise1, &event_started2] () -> Task<> {
             event_started2.set();
             co_await promise1.get_future();
             co_return;
         } YAZ_PRE_COMMA_LOCATION_STR
-    ).fut();
+    );
 
     event_started1.wait();
     event_started2.wait();
@@ -152,7 +152,7 @@ TEST_CASE( "Executor await same executor handled future test", "[concurrency/exe
             order.push_back(12);
             co_return;
         } YAZ_PRE_COMMA_LOCATION_STR
-    ).fut();
+    );
     auto future2 = executor->dispatch_future(
         [executor, &order] () mutable -> Future<void> {
             order.push_back(20);
@@ -162,7 +162,7 @@ TEST_CASE( "Executor await same executor handled future test", "[concurrency/exe
             order.push_back(22);
             co_return;
         } YAZ_PRE_COMMA_LOCATION_STR
-    ).fut();
+    );
 
     executor->start().value();
 

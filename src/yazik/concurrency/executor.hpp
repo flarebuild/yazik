@@ -3,6 +3,7 @@
 #include <functional>
 #include <variant>
 
+#include <folly/Executor.h>
 #include <folly/Function.h>
 
 #include <yazik/utility/detail/promise_base.hpp>
@@ -89,7 +90,8 @@ namespace yazik::concurrency {
 
     struct Executor
     : virtual EnsureOnExecutor
-    , virtual utility::ref_counted {
+    , virtual utility::ref_counted
+    , ::folly::Executor {
         virtual Disposer dispatch_impl(
             unique_function<void(CancellationToken&&)>&& clbk
             $yaz_debug(, const char* descr)
@@ -102,6 +104,9 @@ namespace yazik::concurrency {
             unique_function<void()>&& clbk
             $yaz_debug(, const char* descr)
         ) = 0;
+
+        // For folly::executor
+        void add(unique_function<void()>) override;
 
         template <typename Fn>
         auto dispatch(Fn&& fn $yaz_debug(, const char* descr)) {
@@ -123,20 +128,17 @@ namespace yazik::concurrency {
         }
 
         template <typename Fn>
-        Task<typename std::result_of_t<Fn()>::value_type> dispatch_future(Fn&& fn $yaz_debug(, const char* descr)) {
+        Task<typename std::result_of_t<Fn()>::value_type>
+        dispatch_task(Fn&& fn $yaz_debug(, const char* descr)) {
             co_await ensure_on($yaz_debug(descr));
             auto task = fn();
             co_return co_await task;
         }
 
         template <typename Fn>
-        Task<typename std::result_of_t<Fn()>> dispatch_task(Fn&& fn $yaz_debug(, const char* descr)) {
-            return dispatch_future(
-                [_l_forward(fn)] () mutable -> Task<typename std::result_of_t<Fn()>> {
-                    co_return fn();
-                }
-                $yaz_debug(, descr)
-            );
+        Future<typename std::result_of_t<Fn()>::value_type>
+        dispatch_future(Fn&& fn $yaz_debug(, const char* descr)) {
+            return dispatch_task(std::forward<Fn>(fn) $yaz_debug(, descr)).fut();
         }
 
         template <typename Fn>
@@ -261,6 +263,8 @@ namespace yazik::concurrency {
 
     using executor_ptr_t = intrusive_ptr<concurrency::Executor>;
     using thread_executor_ptr_t = intrusive_ptr<concurrency::ThreadExecutor>;
+
+    void mark_default_executor(const executor_ptr_t& ex);
 
     struct IExecutorProvider {
         static const executor_ptr_t s_null_executor;

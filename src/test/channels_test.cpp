@@ -106,8 +106,8 @@ TEST_CASE( "async channel test", "[rpc/channel]") {
         co_return;
     };
 
-    auto future1 = executor->dispatch_future(async_fib YAZ_PRE_COMMA_LOCATION_STR).fut();
-    auto future2 = executor->dispatch_future(async_fib YAZ_PRE_COMMA_LOCATION_STR).fut();
+    auto future1 = executor->dispatch_future(async_fib YAZ_PRE_COMMA_LOCATION_STR));
+    auto future2 = executor->dispatch_future(async_fib YAZ_PRE_COMMA_LOCATION_STR));
     executor->dispatch([&]{ event.set(); } YAZ_PRE_COMMA_LOCATION_STR);
 
     future1.wait();

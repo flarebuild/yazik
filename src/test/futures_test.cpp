@@ -82,12 +82,12 @@ Future<int> test_async_futures_inner(
     const concurrency::executor_ptr_t& ex2
 ) {
     auto this_thread_id = std::this_thread::get_id();
-    auto thread1_id = ex1->dispatch_task([] {
+    auto thread1_id = ex1->dispatch_future([] {
         return std::this_thread::get_id();
-    } YAZ_PRE_COMMA_LOCATION_STR).fut().get_unwrapped();
+    } YAZ_PRE_COMMA_LOCATION_STR).get_unwrapped();
     auto thread2_id = ex2->dispatch_task([] {
         return std::this_thread::get_id();
-    } YAZ_PRE_COMMA_LOCATION_STR).fut().get_unwrapped();
+    } YAZ_PRE_COMMA_LOCATION_STR).get_unwrapped();
 
     int x = co_await success_int_future(42);
     REQUIRE(std::this_thread::get_id() == this_thread_id);

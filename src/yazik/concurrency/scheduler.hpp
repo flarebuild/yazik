@@ -103,7 +103,7 @@ namespace yazik::concurrency {
     , public virtual ThreadIdHolder {
     public:
         virtual void mark_thread() noexcept = 0;
-        virtual Future<> run_until_done(Future<> work) = 0;
+        virtual Result<> run_until_done(Task<> work) = 0;
     };
 
     intrusive_ptr<WorkScheduler> create_asio_scheduler();

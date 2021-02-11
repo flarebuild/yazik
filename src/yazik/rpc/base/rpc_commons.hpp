@@ -142,4 +142,11 @@ namespace rpc {
         return yaz_ok<rpc::RpcStatus>();
     }
 
+    template<typename SuccessT>
+    inline auto yaz_rpc_ok(SuccessT&& value) noexcept {
+        return ::folly::makeExpected<rpc::RpcStatus, SuccessT>(
+            std::forward<SuccessT>(value)
+        );
+    }
+
 } // end of ::yazik
